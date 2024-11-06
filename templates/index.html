@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CSV Row Editor</title>
+    <!-- Tailwind CSS CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+</head>
+<body class="bg-gray-100 flex items-center justify-center min-h-screen p-2">
+
+    <div class="w-full max-w-4xl bg-white rounded-lg shadow-md p-4">
+        <h1 class="text-lg font-semibold text-center mb-3 text-gray-800">CSV Row Editor</h1>
+
+        {% if data %}
+            <form method="post" action="{{ url_for('handle_submit') }}" class="space-y-2">
+                <!-- Word and Number fields side by side -->
+                <div class="flex flex-col sm:flex-row sm:space-x-2">
+                    <div class="flex flex-col w-full sm:w-1/2">
+                        <label for="word" class="text-gray-700 text-xs font-medium">Word</label>
+                        <input type="text" name="word" id="word" value="{{ data['word'] }}" 
+                               class="bg-gray-100 text-gray-600 border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none cursor-not-allowed" 
+                               readonly>
+                    </div>
+                    <div class="flex flex-col w-full sm:w-1/2">
+                        <label for="number" class="text-gray-700 text-xs font-medium">Number</label>
+                        <input type="text" name="number" id="number" value="{{ data['number'] }}" 
+                               class="bg-gray-100 text-gray-600 border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none cursor-not-allowed" 
+                               readonly>
+                    </div>
+                </div>
+
+                <div class="flex flex-col">
+                    <label for="old_definition" class="text-gray-700 text-xs font-medium">old_definition</label>
+                    <input type="text" name="old_definition" id="old_definition" value="{{ data['old_definition'] }}" 
+                           class="bg-gray-100 text-gray-600 border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none cursor-not-allowed" 
+                           readonly>
+                </div>
+
+                <!-- Part of Speech and Definition fields -->
+                <div class="flex flex-col">
+                    <label for="part_of_speech" class="text-gray-700 text-xs font-medium">Part of Speech</label>
+                    <input type="text" name="part_of_speech" id="part_of_speech" value="{{ data['part_of_speech'] }}" 
+                           class="border border-gray-300 rounded p-1 mt-1 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                </div>
+
+                <div class="flex flex-col">
+                    <label for="definition" class="text-gray-700 text-xs font-medium">Definition</label>
+                    <input type="text" name="definition" id="definition" value="{{ data['definition'] }}" 
+                           class="border border-gray-300 rounded p-1 mt-1 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                </div>
+
+                <!-- Collocations field, same size as Definition -->
+                <div class="flex flex-col">
+                    <label for="collocations" class="text-gray-700 text-xs font-medium">Collocations</label>
+                    <input type="text" name="collocations" id="collocations" value="{{ data['collocations'] }}" 
+                           class="border border-gray-300 rounded p-1 mt-1 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                </div>
+
+                <!-- Example Sentences field with 6 rows -->
+                <div class="flex flex-col">
+                    <label for="example_sentences" class="text-gray-700 text-xs font-medium">Example Sentences</label>
+                    <textarea name="example_sentences" id="example_sentences" rows="8"
+                              class="border border-gray-300 rounded p-1 mt-1 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">{{ data['example_sentences'] }}</textarea>
+                </div>
+
+                <!-- Equal-Sized Buttons at the Bottom -->
+                <div class="grid grid-cols-3 gap-2 mt-4">
+                    <button type="submit" name="action" value="prev" 
+                            class="w-full bg-gray-400 text-white text-sm font-semibold py-2 rounded hover:bg-gray-500 transition {% if current_row <= 1 %}opacity-50 cursor-not-allowed{% endif %}"
+                            {% if current_row <= 1 %}disabled{% endif %}>
+                        Previous
+                    </button>
+                    <button type="submit" name="action" value="save" 
+                            class="w-full bg-blue-500 text-white text-sm font-semibold py-2 rounded hover:bg-blue-600 transition">
+                        Save Changes
+                    </button>
+                    <button type="submit" name="action" value="next" 
+                            class="w-full bg-gray-400 text-white text-sm font-semibold py-2 rounded hover:bg-gray-500 transition {% if current_row >= total_rows %}opacity-50 cursor-not-allowed{% endif %}"
+                            {% if current_row >= total_rows %}disabled{% endif %}>
+                        Next
+                    </button>
+                </div>
+            </form>
+
+        {% else %}
+            <!-- CSV Upload Form -->
+            <form method="post" enctype="multipart/form-data" action="{{ url_for('load_csv') }}" class="flex flex-col items-center space-y-2">
+                <input type="file" name="csv_file" accept=".csv" class="block w-full text-gray-600 py-1 px-2 border border-gray-300 rounded-lg cursor-pointer bg-gray-100 text-xs">
+                <button type="submit" class="bg-green-500 text-white text-sm font-bold py-2 px-4 rounded hover:bg-green-600 transition">
+                    Load CSV
+                </button>
+            </form>
+            <p class="text-center text-gray-500 text-xs mt-2">Please load a CSV file to begin.</p>
+        {% endif %}
+    </div>
+</body>
+</html>

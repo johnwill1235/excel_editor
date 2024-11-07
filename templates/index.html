@@ -27,7 +27,7 @@
                                readonly>
                     </div>
                     <div class="flex flex-col w-2/4">
-                        <label for="old_definition" class="text-gray-700 text-xs font-medium">old_definition</label>
+                        <label for="old_definition" class="text-gray-700 text-xs font-medium">Old Definition</label>
                         <input type="text" name="old_definition" id="old_definition" value="{{ data['old_definition'] }}" 
                                class="bg-gray-100 text-gray-600 border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none cursor-not-allowed" 
                                readonly>
@@ -76,20 +76,24 @@
                 </div>
 
                 <!-- Equal-Sized Buttons at the Bottom -->
-                <div class="grid grid-cols-3 gap-2 mt-4">
+                <div class="grid grid-cols-4 gap-2 mt-4">
                     <button type="submit" name="action" value="prev" 
                             class="w-full bg-gray-400 text-white text-sm font-semibold py-2 rounded hover:bg-gray-500 transition {% if current_row <= 1 %}opacity-50 cursor-not-allowed{% endif %}"
                             {% if current_row <= 1 %}disabled{% endif %}>
                         Previous
                     </button>
-                    <button type="submit" name="action" value="save" 
-                            class="w-full bg-blue-500 text-white text-sm font-semibold py-2 rounded hover:bg-blue-600 transition">
-                        Save Changes
-                    </button>
                     <button type="submit" name="action" value="next" 
                             class="w-full bg-gray-400 text-white text-sm font-semibold py-2 rounded hover:bg-gray-500 transition {% if current_row >= total_rows %}opacity-50 cursor-not-allowed{% endif %}"
                             {% if current_row >= total_rows %}disabled{% endif %}>
                         Next
+                    </button>
+                    <button type="submit" name="action" value="save" 
+                            class="w-full bg-blue-500 text-white text-sm font-semibold py-2 rounded hover:bg-blue-600 transition">
+                        Save Changes
+                    </button>
+                    <button type="button" onclick="window.location.href='{{ url_for('download_csv') }}'"
+                            class="w-full bg-green-500 text-white text-sm font-semibold py-2 rounded hover:bg-green-600 transition">
+                        Download CSV
                     </button>
                 </div>
             </form>
@@ -104,39 +108,98 @@
             <p class="text-center text-gray-500 text-xs mt-2">Please load a CSV file to begin.</p>
         {% endif %}
     </div>
-    <script>
-        function updateInputColors(containerId, inputClass) {
-            const container = document.getElementById(containerId);
-            const inputs = container.getElementsByClassName(inputClass);
-            let nonEmptyCount = 0;
     
-            for (let input of inputs) {
+    <!-- JavaScript for Dynamic Coloring -->
+    <!-- JavaScript for Dynamic Coloring -->
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const collocationsContainer = document.getElementById('collocations-container');
+        const collocationInputs = collocationsContainer.getElementsByClassName('collocation-input');
+        const exampleSentencesContainer = document.getElementById('example-sentences-container');
+        const exampleSentenceInputs = exampleSentencesContainer.getElementsByClassName('example-sentence-input');
+
+        /**
+         * Function to update border colors of collocation inputs.
+         * Green if exactly 5 non-empty, else red.
+         */
+        function updateCollocationColors() {
+            let nonEmptyCount = 0;
+            for (let input of collocationInputs) {
                 if (input.value.trim() !== '') {
                     nonEmptyCount++;
                 }
             }
-    
-            const color = nonEmptyCount <= 5 ? 'green' : 'red';
-            for (let input of inputs) {
+            const color = (nonEmptyCount === 5) ? 'green' : 'red';
+            for (let input of collocationInputs) {
                 input.style.borderColor = color;
             }
         }
-    
-        document.addEventListener('DOMContentLoaded', function() {
-            const collocationsContainerId = 'collocations-container';
-            const exampleSentencesContainerId = 'example-sentences-container';
-    
-            updateInputColors(collocationsContainerId, 'collocation-input');
-            updateInputColors(exampleSentencesContainerId, 'example-sentence-input');
-    
-            document.getElementById(collocationsContainerId).addEventListener('input', function() {
-                updateInputColors(collocationsContainerId, 'collocation-input');
+
+        /**
+         * Function to update border colors of example sentence inputs.
+         * Blue if includes any collocation.
+         * Green if exactly 5 non-empty sentences and doesn't include a collocation.
+         * Red otherwise.
+         */
+        function updateExampleSentenceColors() {
+            // Extract current collocations, excluding empty ones
+            const currentCollocations = Array.from(collocationInputs)
+                .map(input => input.value.trim().toLowerCase())
+                .filter(val => val !== '');
+
+            // Count non-empty example sentences
+            const nonEmptyExampleSentences = Array.from(exampleSentenceInputs)
+                .filter(input => input.value.trim() !== '').length;
+
+            for (let input of exampleSentenceInputs) {
+                const sentence = input.value.trim().toLowerCase();
+                let hasCollocation = false;
+
+                for (let colloc of currentCollocations) {
+                    if (colloc && sentence.includes(colloc)) {
+                        hasCollocation = true;
+                        break;
+                    }
+                }
+
+                if (hasCollocation) {
+                    input.style.borderColor = 'blue';
+                } else {
+                    // Apply green or red based on the count of non-empty example sentences
+                    input.style.borderColor = (nonEmptyExampleSentences === 5) ? 'green' : 'red';
+                }
+            }
+        }
+
+        /**
+         * Initial color update on page load.
+         */
+        function initialUpdate() {
+            updateCollocationColors();
+            updateExampleSentenceColors();
+        }
+
+        /**
+         * Event listeners for dynamic updates.
+         */
+        function addEventListeners() {
+            // Update colors when any collocation input changes
+            collocationsContainer.addEventListener('input', function() {
+                updateCollocationColors();
+                updateExampleSentenceColors();
             });
-    
-            document.getElementById(exampleSentencesContainerId).addEventListener('input', function() {
-                updateInputColors(exampleSentencesContainerId, 'example-sentence-input');
+
+            // Update colors when any example sentence input changes
+            exampleSentencesContainer.addEventListener('input', function() {
+                updateExampleSentenceColors();
             });
-        });
-    </script>
+        }
+
+        // Execute initial color update and set up event listeners
+        initialUpdate();
+        addEventListeners();
+    });
+</script>
+
 </body>
 </html>

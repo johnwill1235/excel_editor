@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, send_file, redirect, url_for, flash, session
 import pandas as pd
 import os
 import logging
@@ -159,6 +159,20 @@ def handle_submit():
         flash(f"Error saving changes: {str(e)}", 'error')
         return redirect(url_for('index'))
 
+
+@app.route('/download_csv')
+def download_csv():
+    try:
+        if 'csv_file_path' in session and os.path.exists(session['csv_file_path']):
+            return send_file(session['csv_file_path'], as_attachment=True)
+        else:
+            flash('No CSV file available for download', 'error')
+            return redirect(url_for('index'))
+    except Exception as e:
+        logger.error(f"Error in download_csv: {e}")
+        flash(f"Error downloading file: {str(e)}", 'error')
+        return redirect(url_for('index'))
+       
 @app.errorhandler(404)
 def not_found_error(error):
     logger.error(f"404 error: {error}")
@@ -170,4 +184,4 @@ def internal_error(error):
     return render_template('index.html', data=None), 500
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run()

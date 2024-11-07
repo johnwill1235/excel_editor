@@ -4,64 +4,75 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CSV Row Editor</title>
-    <!-- Tailwind CSS CDN -->
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-2">
-
     <div class="w-full max-w-4xl bg-white rounded-lg shadow-md p-4">
         <h1 class="text-lg font-semibold text-center mb-3 text-gray-800">CSV Row Editor</h1>
 
         {% if data %}
             <form method="post" action="{{ url_for('handle_submit') }}" class="space-y-2">
-                <!-- Word and Number fields side by side -->
-                <div class="flex flex-col sm:flex-row sm:space-x-2">
-                    <div class="flex flex-col w-full sm:w-1/2">
+                <!-- Word, Number, and Old Definition in one row -->
+                <div class="flex space-x-2">
+                    <div class="flex flex-col w-1/4">
                         <label for="word" class="text-gray-700 text-xs font-medium">Word</label>
                         <input type="text" name="word" id="word" value="{{ data['word'] }}" 
                                class="bg-gray-100 text-gray-600 border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none cursor-not-allowed" 
                                readonly>
                     </div>
-                    <div class="flex flex-col w-full sm:w-1/2">
+                    <div class="flex flex-col w-1/4">
                         <label for="number" class="text-gray-700 text-xs font-medium">Number</label>
                         <input type="text" name="number" id="number" value="{{ data['number'] }}" 
                                class="bg-gray-100 text-gray-600 border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none cursor-not-allowed" 
                                readonly>
                     </div>
+                    <div class="flex flex-col w-2/4">
+                        <label for="old_definition" class="text-gray-700 text-xs font-medium">old_definition</label>
+                        <input type="text" name="old_definition" id="old_definition" value="{{ data['old_definition'] }}" 
+                               class="bg-gray-100 text-gray-600 border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none cursor-not-allowed" 
+                               readonly>
+                    </div>
                 </div>
 
-                <div class="flex flex-col">
-                    <label for="old_definition" class="text-gray-700 text-xs font-medium">old_definition</label>
-                    <input type="text" name="old_definition" id="old_definition" value="{{ data['old_definition'] }}" 
-                           class="bg-gray-100 text-gray-600 border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none cursor-not-allowed" 
-                           readonly>
+                <!-- Definition, Translation, and Part of Speech in one row -->
+                <div class="flex space-x-2">
+                    <div class="flex flex-col w-5/12">
+                        <label for="definition" class="text-gray-700 text-xs font-medium">Definition</label>
+                        <input type="text" name="definition" id="definition" value="{{ data['definition'] }}" 
+                               class="border border-gray-300 rounded p-1 mt-1 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                    </div>
+                    <div class="flex flex-col w-5/12">
+                        <label for="translation" class="text-gray-700 text-xs font-medium">Translation</label>
+                        <input type="text" name="translation" id="translation" value="{{ data['translation'] }}" 
+                               class="border border-gray-300 rounded p-1 mt-1 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                    </div>
+                    <div class="flex flex-col w-2/12">
+                        <label for="part_of_speech" class="text-gray-700 text-xs font-medium">Part of Speech</label>
+                        <input type="text" name="part_of_speech" id="part_of_speech" value="{{ data['part_of_speech'] }}" 
+                               class="border border-gray-300 rounded p-1 mt-1 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                    </div>
                 </div>
 
-                <!-- Part of Speech and Definition fields -->
-                <div class="flex flex-col">
-                    <label for="part_of_speech" class="text-gray-700 text-xs font-medium">Part of Speech</label>
-                    <input type="text" name="part_of_speech" id="part_of_speech" value="{{ data['part_of_speech'] }}" 
-                           class="border border-gray-300 rounded p-1 mt-1 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-                </div>
-
-                <div class="flex flex-col">
-                    <label for="definition" class="text-gray-700 text-xs font-medium">Definition</label>
-                    <input type="text" name="definition" id="definition" value="{{ data['definition'] }}" 
-                           class="border border-gray-300 rounded p-1 mt-1 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-                </div>
-
-                <!-- Collocations field, same size as Definition -->
+                <!-- Collocations field -->
                 <div class="flex flex-col">
                     <label for="collocations" class="text-gray-700 text-xs font-medium">Collocations</label>
-                    <input type="text" name="collocations" id="collocations" value="{{ data['collocations'] }}" 
-                           class="border border-gray-300 rounded p-1 mt-1 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                    <div id="collocations-container" class="flex flex-wrap gap-2">
+                        {% for collocation in data['collocations'].split(' / ') %}
+                            <input type="text" name="collocations" value="{{ collocation }}" 
+                                   class="collocation-input border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none">
+                        {% endfor %}
+                    </div>
                 </div>
-
-                <!-- Example Sentences field with 6 rows -->
+                
+                <!-- Example Sentences in two columns -->
                 <div class="flex flex-col">
                     <label for="example_sentences" class="text-gray-700 text-xs font-medium">Example Sentences</label>
-                    <textarea name="example_sentences" id="example_sentences" rows="8"
-                              class="border border-gray-300 rounded p-1 mt-1 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">{{ data['example_sentences'] }}</textarea>
+                    <div id="example-sentences-container" class="grid grid-cols-2 gap-2">
+                        {% for sentence in data['example_sentences'].split(' / ') %}
+                            <input type="text" name="example_sentences" value="{{ sentence }}" 
+                                   class="example-sentence-input border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none">
+                        {% endfor %}
+                    </div>
                 </div>
 
                 <!-- Equal-Sized Buttons at the Bottom -->
@@ -82,7 +93,6 @@
                     </button>
                 </div>
             </form>
-
         {% else %}
             <!-- CSV Upload Form -->
             <form method="post" enctype="multipart/form-data" action="{{ url_for('load_csv') }}" class="flex flex-col items-center space-y-2">
@@ -94,5 +104,39 @@
             <p class="text-center text-gray-500 text-xs mt-2">Please load a CSV file to begin.</p>
         {% endif %}
     </div>
+    <script>
+        function updateInputColors(containerId, inputClass) {
+            const container = document.getElementById(containerId);
+            const inputs = container.getElementsByClassName(inputClass);
+            let nonEmptyCount = 0;
+    
+            for (let input of inputs) {
+                if (input.value.trim() !== '') {
+                    nonEmptyCount++;
+                }
+            }
+    
+            const color = nonEmptyCount <= 5 ? 'green' : 'red';
+            for (let input of inputs) {
+                input.style.borderColor = color;
+            }
+        }
+    
+        document.addEventListener('DOMContentLoaded', function() {
+            const collocationsContainerId = 'collocations-container';
+            const exampleSentencesContainerId = 'example-sentences-container';
+    
+            updateInputColors(collocationsContainerId, 'collocation-input');
+            updateInputColors(exampleSentencesContainerId, 'example-sentence-input');
+    
+            document.getElementById(collocationsContainerId).addEventListener('input', function() {
+                updateInputColors(collocationsContainerId, 'collocation-input');
+            });
+    
+            document.getElementById(exampleSentencesContainerId).addEventListener('input', function() {
+                updateInputColors(exampleSentencesContainerId, 'example-sentence-input');
+            });
+        });
+    </script>
 </body>
 </html>

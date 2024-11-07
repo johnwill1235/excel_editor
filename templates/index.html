@@ -7,7 +7,7 @@
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen p-2">
-    <div class="w-full max-w-4xl bg-white rounded-lg shadow-md p-4">
+    <div class="w-full max-w-6xl bg-white rounded-lg shadow-md p-4">
         <h1 class="text-lg font-semibold text-center mb-3 text-gray-800">CSV Row Editor</h1>
 
         {% if data %}
@@ -41,12 +41,12 @@
                         <input type="text" name="definition" id="definition" value="{{ data['definition'] }}" 
                                class="border border-gray-300 rounded p-1 mt-1 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
                     </div>
-                    <div class="flex flex-col w-5/12">
+                    <div class="flex flex-col w-6/12">
                         <label for="translation" class="text-gray-700 text-xs font-medium">Translation</label>
                         <input type="text" name="translation" id="translation" value="{{ data['translation'] }}" 
                                class="border border-gray-300 rounded p-1 mt-1 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
                     </div>
-                    <div class="flex flex-col w-2/12">
+                    <div class="flex flex-col w-1/12">
                         <label for="part_of_speech" class="text-gray-700 text-xs font-medium">Part of Speech</label>
                         <input type="text" name="part_of_speech" id="part_of_speech" value="{{ data['part_of_speech'] }}" 
                                class="border border-gray-300 rounded p-1 mt-1 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
@@ -96,7 +96,7 @@
         {% else %}
             <!-- CSV Upload Form -->
             <form method="post" enctype="multipart/form-data" action="{{ url_for('load_csv') }}" class="flex flex-col items-center space-y-2">
-                <input type="file" name="csv_file" accept=".csv" class="block w-full text-gray-600 py-1 px-2 border border-gray-300 rounded-lg cursor-pointer bg-gray-100 text-xs">
+                <input type="file" name="csv_file" accept=".csv" class="items-center block w-full text-gray-600 py-1 px-2 border border-gray-300 rounded-lg cursor-pointer bg-gray-100 text-xs">
                 <button type="submit" class="bg-green-500 text-white text-sm font-bold py-2 px-4 rounded hover:bg-green-600 transition">
                     Load CSV
                 </button>

@@ -125,8 +125,8 @@ def handle_submit():
         action = request.form.get('action')
         logger.debug(f"Handle submit action: {action}")
         
-        # Save current row if action is 'save', 'next', or 'prev'
-        if action in ['save', 'next', 'prev']:
+        # Save current row if action is 'save', 'next', 'prev', or 'download'
+        if action in ['save', 'next', 'prev', 'download']:
             for column in REQUIRED_COLUMNS:
                 if column in ['word', 'number']:
                     continue  # Skip read-only fields
@@ -146,11 +146,14 @@ def handle_submit():
             flash('Changes saved successfully!', 'success')
             logger.debug("Changes saved to CSV")
         
-        # Navigate based on action
+        # Navigate or download based on action
         if action == 'next' and current_index < len(df) - 1:
             session['current_index'] = current_index + 1
         elif action == 'prev' and current_index > 0:
             session['current_index'] = current_index - 1
+        elif action == 'download':
+            # Redirect to the download route after saving
+            return redirect(url_for('download_csv'))
         
         return redirect(url_for('index'))
         

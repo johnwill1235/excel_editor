@@ -91,11 +91,22 @@
                             class="w-full bg-blue-500 text-white text-sm font-semibold py-2 rounded hover:bg-blue-600 transition">
                         儲存
                     </button>
-                    <button type="button" onclick="window.location.href='{{ url_for('download_csv') }}'"
+                    <button type="submit" name="action" value="download"
                             class="w-full bg-green-500 text-white text-sm font-semibold py-2 rounded hover:bg-green-600 transition">
-                        下載CSV
+                        儲存並下載CSV
                     </button>
                 </div>
+                
+                {% if total_rows %}
+                    <div class="mt-4">
+                        <div class="h-4 w-full bg-gray-300 rounded">
+                            <div class="h-4 bg-red-500 rounded" style="width: {{ ((current_row / total_rows) * 100)|round(2) }}%"></div>
+                        </div>
+                        <p class="text-xs text-gray-600 text-center mt-1">Progress: {{ current_row }} / {{ total_rows }}</p>
+                    </div>
+                {% endif %}
+
+
             </form>
         {% else %}
             <!-- CSV Upload Form -->

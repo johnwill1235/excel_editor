@@ -15,19 +15,19 @@
                 <!-- Word, Number, and Old Definition in one row -->
                 <div class="flex space-x-2">
                     <div class="flex flex-col w-1/4">
-                        <label for="word" class="text-gray-700 text-xs font-medium">Word</label>
+                        <label for="word" class="text-gray-700 text-xs font-medium">詞目</label>
                         <input type="text" name="word" id="word" value="{{ data['word'] }}" 
                                class="bg-gray-100 text-gray-600 border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none cursor-not-allowed" 
                                readonly>
                     </div>
                     <div class="flex flex-col w-1/4">
-                        <label for="number" class="text-gray-700 text-xs font-medium">Number</label>
+                        <label for="number" class="text-gray-700 text-xs font-medium">序號</label>
                         <input type="text" name="number" id="number" value="{{ data['number'] }}" 
                                class="bg-gray-100 text-gray-600 border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none cursor-not-allowed" 
                                readonly>
                     </div>
                     <div class="flex flex-col w-2/4">
-                        <label for="old_definition" class="text-gray-700 text-xs font-medium">Old Definition</label>
+                        <label for="old_definition" class="text-gray-700 text-xs font-medium">教育部本來的定義</label>
                         <input type="text" name="old_definition" id="old_definition" value="{{ data['old_definition'] }}" 
                                class="bg-gray-100 text-gray-600 border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none cursor-not-allowed" 
                                readonly>
@@ -37,17 +37,17 @@
                 <!-- Definition, Translation, and Part of Speech in one row -->
                 <div class="flex space-x-2">
                     <div class="flex flex-col w-5/12">
-                        <label for="definition" class="text-gray-700 text-xs font-medium">Definition</label>
+                        <label for="definition" class="text-gray-700 text-xs font-medium">定義</label>
                         <input type="text" name="definition" id="definition" value="{{ data['definition'] }}" 
                                class="border border-gray-300 rounded p-1 mt-1 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
                     </div>
                     <div class="flex flex-col w-6/12">
-                        <label for="translation" class="text-gray-700 text-xs font-medium">Translation</label>
+                        <label for="translation" class="text-gray-700 text-xs font-medium">英譯</label>
                         <input type="text" name="translation" id="translation" value="{{ data['translation'] }}" 
                                class="border border-gray-300 rounded p-1 mt-1 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
                     </div>
                     <div class="flex flex-col w-1/12">
-                        <label for="part_of_speech" class="text-gray-700 text-xs font-medium">Part of Speech</label>
+                        <label for="part_of_speech" class="text-gray-700 text-xs font-medium">詞類</label>
                         <input type="text" name="part_of_speech" id="part_of_speech" value="{{ data['part_of_speech'] }}" 
                                class="border border-gray-300 rounded p-1 mt-1 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
                     </div>
@@ -55,7 +55,7 @@
 
                 <!-- Collocations field -->
                 <div class="flex flex-col">
-                    <label for="collocations" class="text-gray-700 text-xs font-medium">Collocations</label>
+                    <label for="collocations" class="text-gray-700 text-xs font-medium">搭配詞</label>
                     <div id="collocations-container" class="flex flex-wrap gap-2">
                         {% for collocation in data['collocations'].split(' / ') %}
                             <input type="text" name="collocations" value="{{ collocation }}" 
@@ -66,7 +66,7 @@
                 
                 <!-- Example Sentences in two columns -->
                 <div class="flex flex-col">
-                    <label for="example_sentences" class="text-gray-700 text-xs font-medium">Example Sentences</label>
+                    <label for="example_sentences" class="text-gray-700 text-xs font-medium">例句（請刪除到五個，一個包括上面的搭配詞）</label>
                     <div id="example-sentences-container" class="grid grid-cols-2 gap-2">
                         {% for sentence in data['example_sentences'].split(' / ') %}
                             <input type="text" name="example_sentences" value="{{ sentence }}" 
@@ -80,20 +80,20 @@
                     <button type="submit" name="action" value="prev" 
                             class="w-full bg-gray-400 text-white text-sm font-semibold py-2 rounded hover:bg-gray-500 transition {% if current_row <= 1 %}opacity-50 cursor-not-allowed{% endif %}"
                             {% if current_row <= 1 %}disabled{% endif %}>
-                        Previous
+                        上一頁
                     </button>
                     <button type="submit" name="action" value="next" 
                             class="w-full bg-gray-400 text-white text-sm font-semibold py-2 rounded hover:bg-gray-500 transition {% if current_row >= total_rows %}opacity-50 cursor-not-allowed{% endif %}"
                             {% if current_row >= total_rows %}disabled{% endif %}>
-                        Next
+                        下一頁
                     </button>
                     <button type="submit" name="action" value="save" 
                             class="w-full bg-blue-500 text-white text-sm font-semibold py-2 rounded hover:bg-blue-600 transition">
-                        Save Changes
+                        儲存
                     </button>
                     <button type="button" onclick="window.location.href='{{ url_for('download_csv') }}'"
                             class="w-full bg-green-500 text-white text-sm font-semibold py-2 rounded hover:bg-green-600 transition">
-                        Download CSV
+                        下載CSV
                     </button>
                 </div>
             </form>

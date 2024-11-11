@@ -37,20 +37,32 @@ def index():
     try:
         df = load_dataframe()
         current_index = session.get('current_index', 0)
-        
+
+        duplicate_word = False  # Initialize the flag
+
         if df is not None:
             logger.debug(f"DataFrame loaded. Shape: {df.shape}")
             row = df.iloc[current_index]
             data = {column: str(row[column]) if pd.notna(row[column]) else '' 
                    for column in REQUIRED_COLUMNS}
-            return render_template("index.html", 
-                                data=data, 
-                                total_rows=len(df), 
-                                current_row=current_index + 1)
+
+            # Check if next word exists and is the same as current word
+            if current_index + 1 < len(df):
+                next_word = df.iloc[current_index + 1]['word']
+                if data['word'] == next_word:
+                    duplicate_word = True  # Set the flag if duplicate is found
+
+            return render_template(
+                "index.html", 
+                data=data, 
+                total_rows=len(df), 
+                current_row=current_index + 1,
+                duplicate_word=duplicate_word  # Pass the flag to the template
+            )
         else:
             logger.debug("No DataFrame available")
             return render_template("index.html", data=None)
-            
+                
     except Exception as e:
         logger.error(f"Error in index route: {e}")
         flash(f"Error loading data: {str(e)}", "error")

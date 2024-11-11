@@ -24,10 +24,13 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def load_dataframe():
-    """Load DataFrame from session data"""
+    """Load DataFrame from session data and group by word"""
     if 'csv_file_path' in session and os.path.exists(session['csv_file_path']):
         try:
-            return pd.read_csv(session['csv_file_path'])
+            df = pd.read_csv(session['csv_file_path'])
+            # Exclude the grouping column 'word' from the apply operation
+            grouped = df.groupby('word', group_keys=False).apply(lambda x: x.to_dict(orient='records')).to_dict()
+            return grouped
         except Exception as e:
             logger.error(f"Error loading DataFrame: {e}")
     return None
@@ -35,38 +38,30 @@ def load_dataframe():
 @app.route('/', methods=['GET'])
 def index():
     try:
-        df = load_dataframe()
+        grouped_data = load_dataframe()
         current_index = session.get('current_index', 0)
 
-        duplicate_word = False  # Initialize the flag
+        if grouped_data is not None:
+            words = list(grouped_data.keys())
+            current_word = words[current_index]
+            entries = grouped_data[current_word]
 
-        if df is not None:
-            logger.debug(f"DataFrame loaded. Shape: {df.shape}")
-            row = df.iloc[current_index]
-            data = {column: str(row[column]) if pd.notna(row[column]) else '' 
-                   for column in REQUIRED_COLUMNS}
-
-            # Check if next word exists and is the same as current word
-            if current_index + 1 < len(df):
-                next_word = df.iloc[current_index + 1]['word']
-                if data['word'] == next_word:
-                    duplicate_word = True  # Set the flag if duplicate is found
+            logger.debug(f"Data for word '{current_word}' loaded. Number of entries: {len(entries)}")
 
             return render_template(
                 "index.html", 
-                data=data, 
-                total_rows=len(df), 
-                current_row=current_index + 1,
-                duplicate_word=duplicate_word  # Pass the flag to the template
+                entries=entries, 
+                total_words=len(words), 
+                current_word_index=current_index + 1
             )
         else:
             logger.debug("No DataFrame available")
-            return render_template("index.html", data=None)
+            return render_template("index.html", entries=None)
                 
     except Exception as e:
         logger.error(f"Error in index route: {e}")
         flash(f"Error loading data: {str(e)}", "error")
-        return render_template("index.html", data=None)
+        return render_template("index.html", entries=None)
 
 @app.route('/load_csv', methods=['POST'])
 def load_csv():
@@ -128,8 +123,8 @@ def load_csv():
 @app.route('/handle_submit', methods=['POST'])
 def handle_submit():
     try:
-        df = load_dataframe()
-        if df is None:
+        grouped_data = load_dataframe()
+        if grouped_data is None:
             flash('No CSV file loaded', 'error')
             return redirect(url_for('index'))
         
@@ -137,29 +132,35 @@ def handle_submit():
         action = request.form.get('action')
         logger.debug(f"Handle submit action: {action}")
         
-        # Save current row if action is 'save', 'next', 'prev', or 'download'
+        words = list(grouped_data.keys())
+        current_word = words[current_index]
+        entries = grouped_data[current_word]
+
+        # Save current entries if action is 'save', 'next', 'prev', or 'download'
         if action in ['save', 'next', 'prev', 'download']:
-            for column in REQUIRED_COLUMNS:
-                if column in ['word', 'number']:
-                    continue  # Skip read-only fields
-                
-                if column in ['collocations', 'example_sentences']:
-                    values = request.form.getlist(column)
-                    filtered_values = [v.strip() for v in values if v.strip()]
-                    cleaned_data = ' / '.join(filtered_values)
-                else:
-                    form_data = request.form.get(column, '')
-                    cleaned_data = form_data.strip()
-                
-                df.at[current_index, column] = cleaned_data
+            for i, entry in enumerate(entries):
+                for column in REQUIRED_COLUMNS:
+                    if column in ['word', 'number']:
+                        continue  # Skip read-only fields
+                    
+                    if column in ['collocations', 'example_sentences']:
+                        values = request.form.getlist(f"{column}_{i}")
+                        filtered_values = [v.strip() for v in values if v.strip()]
+                        cleaned_data = ' / '.join(filtered_values)
+                    else:
+                        form_data = request.form.get(f"{column}_{i}", '')
+                        cleaned_data = form_data.strip()
+                    
+                    entry[column] = cleaned_data
             
-            # Save to CSV
-            df.to_csv(session['csv_file_path'], index=False)
+            # Convert the updated grouped data back to a DataFrame
+            updated_df = pd.DataFrame([entry for entries in grouped_data.values() for entry in entries])
+            updated_df.to_csv(session['csv_file_path'], index=False)
             flash('Changes saved successfully!', 'success')
             logger.debug("Changes saved to CSV")
         
         # Navigate or download based on action
-        if action == 'next' and current_index < len(df) - 1:
+        if action == 'next' and current_index < len(words) - 1:
             session['current_index'] = current_index + 1
         elif action == 'prev' and current_index > 0:
             session['current_index'] = current_index - 1

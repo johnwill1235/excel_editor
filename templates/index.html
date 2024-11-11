@@ -15,87 +15,95 @@
             <div id="duplicate-word-notification" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 flex justify-between items-center" role="alert">
                 <div>
                     <p class="font-bold">檢測到重複的詞語</p> 
-                        <p>下一個詞與當前詞相同。</p>
+                    <p>下一個詞與當前詞相同。</p>
                 </div>
                 <button onclick="document.getElementById('duplicate-word-notification').style.display='none'" class="text-yellow-700 font-bold">&times;</button>
             </div>
         {% endif %}
 
-        {% if data %}
+        {% if entries %}
             <form method="post" action="{{ url_for('handle_submit') }}" class="space-y-2">
-                <!-- Word, Number, and Old Definition in one row -->
-                <div class="flex space-x-2">
-                    <div class="flex flex-col w-1/4">
-                        <label for="word" class="text-gray-700 text-xs font-medium">詞目</label>
-                        <input type="text" name="word" id="word" value="{{ data['word'] }}" 
-                               class="bg-gray-100 text-gray-600 border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none cursor-not-allowed" 
-                               readonly>
+                {% for entry in entries %}
+                    <!-- Use loop.index0 for zero-based index -->
+                    {% set i = loop.index0 %}
+                    
+                    <!-- Divider between entries -->
+                    <hr class="my-4 border-t-2 border-gray-200">
+                    
+                    <!-- Word, Number, and Old Definition in one row -->
+                    <div class="flex space-x-2">
+                        <div class="flex flex-col w-1/4">
+                            <label for="word_{{ i }}" class="text-gray-700 text-xs font-medium">詞目</label>
+                            <input type="text" name="word_{{ i }}" value="{{ entry['word'] }}" 
+                                class="bg-gray-100 text-gray-600 border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none cursor-not-allowed" 
+                                readonly>
+                        </div>
+                        <div class="flex flex-col w-1/4">
+                            <label for="number_{{ i }}" class="text-gray-700 text-xs font-medium">序號</label>
+                            <input type="text" name="number_{{ i }}" value="{{ entry['number'] }}" 
+                                class="bg-gray-100 text-gray-600 border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none cursor-not-allowed" 
+                                readonly>
+                        </div>
+                        <div class="flex flex-col w-2/4">
+                            <label for="old_definition_{{ i }}" class="text-gray-700 text-xs font-medium">教育部本來的定義</label>
+                            <input type="text" name="old_definition_{{ i }}" value="{{ entry['old_definition'] }}" 
+                                class="bg-gray-100 text-gray-600 border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none cursor-not-allowed" 
+                                readonly>
+                        </div>
                     </div>
-                    <div class="flex flex-col w-1/4">
-                        <label for="number" class="text-gray-700 text-xs font-medium">序號</label>
-                        <input type="text" name="number" id="number" value="{{ data['number'] }}" 
-                               class="bg-gray-100 text-gray-600 border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none cursor-not-allowed" 
-                               readonly>
-                    </div>
-                    <div class="flex flex-col w-2/4">
-                        <label for="old_definition" class="text-gray-700 text-xs font-medium">教育部本來的定義</label>
-                        <input type="text" name="old_definition" id="old_definition" value="{{ data['old_definition'] }}" 
-                               class="bg-gray-100 text-gray-600 border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none cursor-not-allowed" 
-                               readonly>
-                    </div>
-                </div>
 
-                <!-- Definition, Translation, and Part of Speech in one row -->
-                <div class="flex space-x-2">
-                    <div class="flex flex-col w-5/12">
-                        <label for="definition" class="text-gray-700 text-xs font-medium">定義</label>
-                        <input type="text" name="definition" id="definition" value="{{ data['definition'] }}" 
-                               class="border border-gray-300 rounded p-1 mt-1 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                    <!-- Definition, Translation, and Part of Speech in one row -->
+                    <div class="flex space-x-2">
+                        <div class="flex flex-col w-5/12">
+                            <label for="definition_{{ i }}" class="text-gray-700 text-xs font-medium">定義</label>
+                            <input type="text" name="definition_{{ i }}" value="{{ entry['definition'] }}" 
+                                class="border border-gray-300 rounded p-1 mt-1 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                        </div>
+                        <div class="flex flex-col w-6/12">
+                            <label for="translation_{{ i }}" class="text-gray-700 text-xs font-medium">英譯</label>
+                            <input type="text" name="translation_{{ i }}" value="{{ entry['translation'] }}" 
+                                class="border border-gray-300 rounded p-1 mt-1 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                        </div>
+                        <div class="flex flex-col w-1/12">
+                            <label for="part_of_speech_{{ i }}" class="text-gray-700 text-xs font-medium">詞類</label>
+                            <input type="text" name="part_of_speech_{{ i }}" value="{{ entry['part_of_speech'] }}" 
+                                class="border border-gray-300 rounded p-1 mt-1 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
+                        </div>
                     </div>
-                    <div class="flex flex-col w-6/12">
-                        <label for="translation" class="text-gray-700 text-xs font-medium">英譯</label>
-                        <input type="text" name="translation" id="translation" value="{{ data['translation'] }}" 
-                               class="border border-gray-300 rounded p-1 mt-1 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-                    </div>
-                    <div class="flex flex-col w-1/12">
-                        <label for="part_of_speech" class="text-gray-700 text-xs font-medium">詞類</label>
-                        <input type="text" name="part_of_speech" id="part_of_speech" value="{{ data['part_of_speech'] }}" 
-                               class="border border-gray-300 rounded p-1 mt-1 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-                    </div>
-                </div>
 
-                <!-- Collocations field -->
-                <div class="flex flex-col">
-                    <label for="collocations" class="text-gray-700 text-xs font-medium">搭配詞</label>
-                    <div id="collocations-container" class="flex flex-wrap gap-2">
-                        {% for collocation in data['collocations'].split(' / ') %}
-                            <input type="text" name="collocations" value="{{ collocation }}" 
-                                   class="collocation-input border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none">
-                        {% endfor %}
+                    <!-- Collocations field -->
+                    <div class="flex flex-col">
+                        <label for="collocations_{{ i }}" class="text-gray-700 text-xs font-medium">搭配詞</label>
+                        <div id="collocations-container" class="flex flex-wrap gap-2">
+                            {% for collocation in entry['collocations'].split(' / ') %}
+                                <input type="text" name="collocations_{{ i }}" value="{{ collocation }}" 
+                                    class="collocation-input border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none">
+                            {% endfor %}
+                        </div>
                     </div>
-                </div>
-                
-                <!-- Example Sentences in two columns -->
-                <div class="flex flex-col">
-                    <label for="example_sentences" class="text-gray-700 text-xs font-medium">例句（請刪到五個，剩下五個之中至少一個搭配詞）</label>
-                    <div id="example-sentences-container" class="grid grid-cols-2 gap-2">
-                        {% for sentence in data['example_sentences'].split(' / ') %}
-                            <input type="text" name="example_sentences" value="{{ sentence }}" 
-                                   class="example-sentence-input border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none">
-                        {% endfor %}
+                    
+                    <!-- Example Sentences in two columns -->
+                    <div class="flex flex-col">
+                        <label for="example_sentences_{{ i }}" class="text-gray-700 text-xs font-medium">例句（請刪到五個，剩下五個之中至少一個搭配詞）</label>
+                        <div id="example-sentences-container" class="grid grid-cols-2 gap-2">
+                            {% for sentence in entry['example_sentences'].split(' / ') %}
+                                <input type="text" name="example_sentences_{{ i }}" value="{{ sentence }}" 
+                                    class="example-sentence-input border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none">
+                            {% endfor %}
+                        </div>
                     </div>
-                </div>
+                {% endfor %}
 
-                <!-- Equal-Sized Buttons at the Bottom -->
+                <!-- Navigation and Save Buttons -->
                 <div class="grid grid-cols-4 gap-2 mt-4">
                     <button type="submit" name="action" value="prev" 
-                            class="w-full bg-gray-400 text-white text-sm font-semibold py-2 rounded hover:bg-gray-500 transition {% if current_row <= 1 %}opacity-50 cursor-not-allowed{% endif %}"
-                            {% if current_row <= 1 %}disabled{% endif %}>
+                            class="w-full bg-gray-400 text-white text-sm font-semibold py-2 rounded hover:bg-gray-500 transition {% if current_word_index <= 1 %}opacity-50 cursor-not-allowed{% endif %}"
+                            {% if current_word_index <= 1 %}disabled{% endif %}>
                         上一頁
                     </button>
                     <button type="submit" name="action" value="next" 
-                            class="w-full bg-gray-400 text-white text-sm font-semibold py-2 rounded hover:bg-gray-500 transition {% if current_row >= total_rows %}opacity-50 cursor-not-allowed{% endif %}"
-                            {% if current_row >= total_rows %}disabled{% endif %}>
+                            class="w-full bg-gray-400 text-white text-sm font-semibold py-2 rounded hover:bg-gray-500 transition {% if current_word_index >= total_words %}opacity-50 cursor-not-allowed{% endif %}"
+                            {% if current_word_index >= total_words %}disabled{% endif %}>
                         下一頁
                     </button>
                     <button type="submit" name="action" value="save" 
@@ -108,15 +116,14 @@
                     </button>
                 </div>
                 
-                {% if total_rows %}
+                {% if total_words %}
                     <div class="mt-4">
                         <div class="h-4 w-full bg-gray-300 rounded">
-                            <div class="h-4 bg-red-500 rounded" style="width: {{ ((current_row / total_rows) * 100)|round(2) }}%"></div>
+                            <div class="h-4 bg-red-500 rounded" style="width: {{ ((current_word_index / total_words) * 100)|round(2) }}%"></div>
                         </div>
-                        <p class="text-xs text-gray-600 text-center mt-1">Progress: {{ current_row }} / {{ total_rows }}</p>
+                        <p class="text-xs text-gray-600 text-center mt-1">Progress: {{ current_word_index }} / {{ total_words }}</p>
                     </div>
                 {% endif %}
-
             </form>
         {% else %}
             <!-- CSV Upload Form -->

@@ -252,16 +252,28 @@ def download_csv():
     try:
         if 'csv_file_path' in session and os.path.exists(session['csv_file_path']):
             def prepare_download():
+                # Read the original CSV file
+                df = pd.read_csv(session['csv_file_path'])
+                
+                # Sort the DataFrame by 'number' column in ascending order
+                sorted_df = df.sort_values(by='number', ascending=True)
+                
                 # Create a temporary copy for download
                 temp_dir = os.path.join(UPLOAD_FOLDER, 'temp')
                 os.makedirs(temp_dir, exist_ok=True)
                 temp_file = os.path.join(temp_dir, os.path.basename(session['csv_file_path']))
-                shutil.copy2(session['csv_file_path'], temp_file)
+                
+                # Save the sorted DataFrame to the temporary file
+                sorted_df.to_csv(temp_file, index=False)
                 return temp_file
 
+            # Prepare the sorted CSV file for download
             temp_file = safe_file_operation(session['csv_file_path'], prepare_download)
-            return send_file(temp_file, as_attachment=True, 
-                           download_name=f"updated_{os.path.basename(session['csv_file_path'])}")
+            return send_file(
+                temp_file, 
+                as_attachment=True,
+                download_name=f"sorted_{os.path.basename(session['csv_file_path'])}"
+            )
         else:
             flash('No CSV file available for download', 'error')
             return redirect(url_for('index'))
@@ -269,6 +281,7 @@ def download_csv():
         logger.error(f"Error in download_csv: {e}")
         flash(f"Error downloading file: {str(e)}", 'error')
         return redirect(url_for('index'))
+
        
 @app.errorhandler(404)
 def not_found_error(error):

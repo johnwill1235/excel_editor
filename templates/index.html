@@ -13,13 +13,10 @@
         {% if entries %}
             <form method="post" action="{{ url_for('handle_submit') }}" class="space-y-2">
                 {% for entry in entries %}
-                    <!-- Use loop.index0 for zero-based index -->
                     {% set i = loop.index0 %}
                     
-                    <!-- Divider between entries -->
                     <hr class="my-4 border-t-2 border-gray-200">
                     
-                    <!-- Word, Number, and Old Definition in one row -->
                     <div class="flex space-x-2">
                         <div class="flex flex-col w-1/4">
                             <label for="word_{{ i }}" class="text-gray-700 text-xs font-medium">詞目</label>
@@ -41,7 +38,6 @@
                         </div>
                     </div>
 
-                    <!-- Definition, Translation, and Part of Speech in one row -->
                     <div class="flex space-x-2">
                         <div class="flex flex-col w-5/12">
                             <label for="definition_{{ i }}" class="text-gray-700 text-xs font-medium">定義</label>
@@ -60,10 +56,9 @@
                         </div>
                     </div>
 
-                    <!-- Collocations field -->
                     <div class="flex flex-col">
                         <label for="collocations_{{ i }}" class="text-gray-700 text-xs font-medium">搭配詞</label>
-                        <div id="collocations-container" class="flex flex-wrap gap-2">
+                        <div id="collocations-container-{{ i }}" class="flex flex-wrap gap-2">
                             {% for collocation in entry['collocations'].split(' / ') %}
                                 <input type="text" name="collocations_{{ i }}" value="{{ collocation }}" 
                                     class="collocation-input border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none">
@@ -71,10 +66,9 @@
                         </div>
                     </div>
                     
-                    <!-- Example Sentences in two columns -->
                     <div class="flex flex-col">
                         <label for="example_sentences_{{ i }}" class="text-gray-700 text-xs font-medium">例句（請刪到五個，剩下五個之中至少一個搭配詞）</label>
-                        <div id="example-sentences-container" class="grid grid-cols-2 gap-2">
+                        <div id="example-sentences-container-{{ i }}" class="grid grid-cols-2 gap-2">
                             {% for sentence in entry['example_sentences'].split(' / ') %}
                                 <input type="text" name="example_sentences_{{ i }}" value="{{ sentence }}" 
                                     class="example-sentence-input border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none">
@@ -115,7 +109,6 @@
                 {% endif %}
             </form>
         {% else %}
-            <!-- CSV Upload Form -->
             <form method="post" enctype="multipart/form-data" action="{{ url_for('load_csv') }}" class="flex flex-col items-center space-y-2">
                 <input type="file" name="csv_file" accept=".csv" class="items-center block w-full text-gray-600 py-1 px-2 border border-gray-300 rounded-lg cursor-pointer bg-gray-100 text-xs">
                 <button type="submit" class="bg-green-500 text-white text-sm font-bold py-2 px-4 rounded hover:bg-green-600 transition">
@@ -126,96 +119,80 @@
         {% endif %}
     </div>
     
-    <!-- JavaScript for Dynamic Coloring -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
-            const collocationsContainer = document.getElementById('collocations-container');
-            const collocationInputs = collocationsContainer.getElementsByClassName('collocation-input');
-            const exampleSentencesContainer = document.getElementById('example-sentences-container');
-            const exampleSentenceInputs = exampleSentencesContainer.getElementsByClassName('example-sentence-input');
-    
-            /**
-             * Function to update border colors of collocation inputs.
-             * Green if exactly 5 non-empty, else red.
-             */
-            function updateCollocationColors() {
-                let nonEmptyCount = 0;
-                for (let input of collocationInputs) {
-                    if (input.value.trim() !== '') {
-                        nonEmptyCount++;
-                    }
-                }
-                const color = (nonEmptyCount === 5) ? 'green' : 'red';
-                for (let input of collocationInputs) {
-                    input.style.borderColor = color;
-                }
-            }
-    
-            /**
-             * Function to update border colors of example sentence inputs.
-             * Blue if includes any collocation.
-             * Green if exactly 5 non-empty sentences and doesn't include a collocation.
-             * Red otherwise.
-             */
-            function updateExampleSentenceColors() {
-                // Extract current collocations, excluding empty ones
-                const currentCollocations = Array.from(collocationInputs)
-                    .map(input => input.value.trim().toLowerCase())
-                    .filter(val => val !== '');
-    
-                // Count non-empty example sentences
-                const nonEmptyExampleSentences = Array.from(exampleSentenceInputs)
-                    .filter(input => input.value.trim() !== '').length;
-    
-                for (let input of exampleSentenceInputs) {
-                    const sentence = input.value.trim().toLowerCase();
-                    let hasCollocation = false;
-    
-                    for (let colloc of currentCollocations) {
-                        if (colloc && sentence.includes(colloc)) {
-                            hasCollocation = true;
-                            break;
+            // Function to handle color updates for a single entry
+            function setupEntryValidation(index) {
+                const collocationsContainer = document.getElementById(`collocations-container-${index}`);
+                const exampleSentencesContainer = document.getElementById(`example-sentences-container-${index}`);
+                
+                if (!collocationsContainer || !exampleSentencesContainer) return;
+
+                const collocationInputs = collocationsContainer.getElementsByClassName('collocation-input');
+                const exampleSentenceInputs = exampleSentencesContainer.getElementsByClassName('example-sentence-input');
+
+                function updateCollocationColors() {
+                    let nonEmptyCount = 0;
+                    for (let input of collocationInputs) {
+                        if (input.value.trim() !== '') {
+                            nonEmptyCount++;
                         }
                     }
-    
-                    if (hasCollocation) {
-                        input.style.borderColor = 'blue';
-                    } else {
-                        // Apply green or red based on the count of non-empty example sentences
-                        input.style.borderColor = (nonEmptyExampleSentences === 5) ? 'green' : 'red';
+                    const color = (nonEmptyCount === 5) ? 'green' : 'red';
+                    for (let input of collocationInputs) {
+                        input.style.borderColor = color;
                     }
                 }
-            }
-    
-            /**
-             * Initial color update on page load.
-             */
-            function initialUpdate() {
-                updateCollocationColors();
-                updateExampleSentenceColors();
-            }
-    
-            /**
-             * Event listeners for dynamic updates.
-             */
-            function addEventListeners() {
-                // Update colors when any collocation input changes
+
+                function updateExampleSentenceColors() {
+                    const currentCollocations = Array.from(collocationInputs)
+                        .map(input => input.value.trim().toLowerCase())
+                        .filter(val => val !== '');
+
+                    const nonEmptyExampleSentences = Array.from(exampleSentenceInputs)
+                        .filter(input => input.value.trim() !== '').length;
+
+                    for (let input of exampleSentenceInputs) {
+                        const sentence = input.value.trim().toLowerCase();
+                        let hasCollocation = false;
+
+                        for (let colloc of currentCollocations) {
+                            if (colloc && sentence.includes(colloc)) {
+                                hasCollocation = true;
+                                break;
+                            }
+                        }
+
+                        if (hasCollocation) {
+                            input.style.borderColor = 'blue';
+                        } else {
+                            input.style.borderColor = (nonEmptyExampleSentences === 5) ? 'green' : 'red';
+                        }
+                    }
+                }
+
+                // Add event listeners for this entry
                 collocationsContainer.addEventListener('input', function() {
                     updateCollocationColors();
                     updateExampleSentenceColors();
                 });
-    
-                // Update colors when any example sentence input changes
+
                 exampleSentencesContainer.addEventListener('input', function() {
                     updateExampleSentenceColors();
                 });
+
+                // Initial update for this entry
+                updateCollocationColors();
+                updateExampleSentenceColors();
             }
-    
-            // Execute initial color update and set up event listeners
-            initialUpdate();
-            addEventListeners();
+
+            // Find all entries and set up validation for each
+            const entries = document.querySelectorAll('[id^="collocations-container-"]');
+            entries.forEach(entry => {
+                const index = entry.id.split('-').pop();
+                setupEntryValidation(index);
+            });
         });
     </script>
-
 </body>
 </html>

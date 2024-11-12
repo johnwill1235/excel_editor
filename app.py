@@ -3,6 +3,16 @@ import pandas as pd
 import os
 import logging
 from werkzeug.utils import secure_filename
+from filelock import FileLock
+import time
+from datetime import datetime
+import shutil
+
+# Add to existing configuration
+FILE_LOCK_TIMEOUT = 30  # seconds
+FILE_RETENTION_PERIOD = 36000  # 10 hours in seconds
+LOCK_DIR = 'locks'
+os.makedirs(LOCK_DIR, exist_ok=True)
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG)
@@ -20,6 +30,37 @@ REQUIRED_COLUMNS = ["word", "number", "old_definition", "translation",
 # Create uploads directory if it doesn't exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
+
+def get_lock_path(filepath):
+    """Generate a lock file path for a given file"""
+    filename = os.path.basename(filepath)
+    return os.path.join(LOCK_DIR, f"{filename}.lock")
+
+def cleanup_old_files():
+    """Remove files older than retention period"""
+    current_time = time.time()
+    for filename in os.listdir(UPLOAD_FOLDER):
+        filepath = os.path.join(UPLOAD_FOLDER, filename)
+        try:
+            if os.path.isfile(filepath):
+                if current_time - os.path.getmtime(filepath) > FILE_RETENTION_PERIOD:
+                    os.remove(filepath)
+                    lock_path = get_lock_path(filepath)
+                    if os.path.exists(lock_path):
+                        os.remove(lock_path)
+        except Exception as e:
+            logger.error(f"Error cleaning up file {filepath}: {e}")
+
+def safe_file_operation(filepath, operation_func, *args, **kwargs):
+    """Safely perform file operations with locking"""
+    lock_path = get_lock_path(filepath)
+    try:
+        with FileLock(lock_path, timeout=FILE_LOCK_TIMEOUT):
+            return operation_func(*args, **kwargs)
+    except TimeoutError:
+        logger.error(f"Timeout waiting for file lock: {filepath}")
+        raise Exception("File is currently in use. Please try again in a moment.")
+
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
@@ -27,12 +68,17 @@ def load_dataframe():
     """Load DataFrame from session data and group by word"""
     if 'csv_file_path' in session and os.path.exists(session['csv_file_path']):
         try:
-            df = pd.read_csv(session['csv_file_path'])
-            # Exclude the grouping column 'word' from the apply operation
-            grouped = df.groupby('word', group_keys=False).apply(lambda x: x.to_dict(orient='records')).to_dict()
-            return grouped
+            def read_and_group():
+                df = pd.read_csv(session['csv_file_path'])
+                grouped = df.groupby('word', group_keys=False).apply(
+                    lambda x: x.to_dict(orient='records')).to_dict()
+                return grouped
+            
+            return safe_file_operation(session['csv_file_path'], read_and_group)
         except Exception as e:
             logger.error(f"Error loading DataFrame: {e}")
+            if 'csv_file_path' in session:
+                del session['csv_file_path']  # Clear invalid file path from session
     return None
 
 @app.route('/', methods=['GET'])
@@ -66,6 +112,9 @@ def index():
 @app.route('/load_csv', methods=['POST'])
 def load_csv():
     try:
+        # Clean up old files first
+        cleanup_old_files()
+        
         if 'csv_file' not in request.files:
             logger.warning("No file in request")
             flash('No file uploaded', 'error')
@@ -79,24 +128,37 @@ def load_csv():
         
         if file and allowed_file(file.filename):
             try:
-                filename = secure_filename(file.filename)
+                # Generate unique filename using timestamp
+                timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+                filename = f"{timestamp}_{secure_filename(file.filename)}"
                 filepath = os.path.join(UPLOAD_FOLDER, filename)
+                
+                # Remove old file if exists in session
+                if 'csv_file_path' in session and os.path.exists(session['csv_file_path']):
+                    old_filepath = session['csv_file_path']
+                    old_lock_path = get_lock_path(old_filepath)
+                    try:
+                        os.remove(old_filepath)
+                        if os.path.exists(old_lock_path):
+                            os.remove(old_lock_path)
+                    except Exception as e:
+                        logger.error(f"Error removing old file: {e}")
+                
+                # Save new file
                 file.save(filepath)
                 logger.debug(f"File saved to {filepath}")
                 
-                # Try to read the CSV file
-                temp_df = pd.read_csv(filepath)
-                logger.debug(f"CSV read successful. Shape: {temp_df.shape}")
+                # Verify file with lock
+                def verify_csv():
+                    temp_df = pd.read_csv(filepath)
+                    missing_columns = [col for col in REQUIRED_COLUMNS if col not in temp_df.columns]
+                    if missing_columns:
+                        raise ValueError(f"Missing required columns: {', '.join(missing_columns)}")
+                    return temp_df
                 
-                # Check for required columns
-                missing_columns = [col for col in REQUIRED_COLUMNS if col not in temp_df.columns]
-                if missing_columns:
-                    logger.warning(f"Missing columns: {missing_columns}")
-                    flash(f"Missing required columns: {', '.join(missing_columns)}", 'error')
-                    os.remove(filepath)
-                    return redirect(url_for('index'))
+                safe_file_operation(filepath, verify_csv)
                 
-                # Store file path in session
+                # Update session
                 session['csv_file_path'] = filepath
                 session['current_index'] = 0
                 
@@ -105,9 +167,15 @@ def load_csv():
                 
             except Exception as e:
                 logger.error(f"Error processing CSV: {e}")
-                flash(f"Error processing CSV file: {str(e)}", 'error')
                 if os.path.exists(filepath):
-                    os.remove(filepath)
+                    try:
+                        os.remove(filepath)
+                        lock_path = get_lock_path(filepath)
+                        if os.path.exists(lock_path):
+                            os.remove(lock_path)
+                    except Exception as delete_error:
+                        logger.error(f"Error cleaning up after failed upload: {delete_error}")
+                flash(f"Error processing CSV file: {str(e)}", 'error')
                 return redirect(url_for('index'))
         else:
             logger.warning("Invalid file type")
@@ -138,26 +206,30 @@ def handle_submit():
 
         # Save current entries if action is 'save', 'next', 'prev', or 'download'
         if action in ['save', 'next', 'prev', 'download']:
-            for i, entry in enumerate(entries):
-                for column in REQUIRED_COLUMNS:
-                    if column in ['word', 'number']:
-                        continue  # Skip read-only fields
-                    
-                    if column in ['collocations', 'example_sentences']:
-                        values = request.form.getlist(f"{column}_{i}")
-                        filtered_values = [v.strip() for v in values if v.strip()]
-                        cleaned_data = ' / '.join(filtered_values)
-                    else:
-                        form_data = request.form.get(f"{column}_{i}", '')
-                        cleaned_data = form_data.strip()
-                    
-                    entry[column] = cleaned_data
-            
-            # Convert the updated grouped data back to a DataFrame
-            updated_df = pd.DataFrame([entry for entries in grouped_data.values() for entry in entries])
-            updated_df.to_csv(session['csv_file_path'], index=False)
-            flash('Changes saved successfully!', 'success')
-            logger.debug("Changes saved to CSV")
+            def save_changes():
+                for i, entry in enumerate(entries):
+                    for column in REQUIRED_COLUMNS:
+                        if column in ['word', 'number']:
+                            continue  # Skip read-only fields
+                        
+                        if column in ['collocations', 'example_sentences']:
+                            values = request.form.getlist(f"{column}_{i}")
+                            filtered_values = [v.strip() for v in values if v.strip()]
+                            cleaned_data = ' / '.join(filtered_values)
+                        else:
+                            form_data = request.form.get(f"{column}_{i}", '')
+                            cleaned_data = form_data.strip()
+                        
+                        entry[column] = cleaned_data
+                
+                # Convert the updated grouped data back to a DataFrame
+                updated_df = pd.DataFrame([entry for entries in grouped_data.values() for entry in entries])
+                updated_df.to_csv(session['csv_file_path'], index=False)
+                return True
+
+            if safe_file_operation(session['csv_file_path'], save_changes):
+                flash('Changes saved successfully!', 'success')
+                logger.debug("Changes saved to CSV")
         
         # Navigate or download based on action
         if action == 'next' and current_index < len(words) - 1:
@@ -165,7 +237,6 @@ def handle_submit():
         elif action == 'prev' and current_index > 0:
             session['current_index'] = current_index - 1
         elif action == 'download':
-            # Redirect to the download route after saving
             return redirect(url_for('download_csv'))
         
         return redirect(url_for('index'))
@@ -180,7 +251,17 @@ def handle_submit():
 def download_csv():
     try:
         if 'csv_file_path' in session and os.path.exists(session['csv_file_path']):
-            return send_file(session['csv_file_path'], as_attachment=True)
+            def prepare_download():
+                # Create a temporary copy for download
+                temp_dir = os.path.join(UPLOAD_FOLDER, 'temp')
+                os.makedirs(temp_dir, exist_ok=True)
+                temp_file = os.path.join(temp_dir, os.path.basename(session['csv_file_path']))
+                shutil.copy2(session['csv_file_path'], temp_file)
+                return temp_file
+
+            temp_file = safe_file_operation(session['csv_file_path'], prepare_download)
+            return send_file(temp_file, as_attachment=True, 
+                           download_name=f"updated_{os.path.basename(session['csv_file_path'])}")
         else:
             flash('No CSV file available for download', 'error')
             return redirect(url_for('index'))

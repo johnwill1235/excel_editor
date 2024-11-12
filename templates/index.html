@@ -10,17 +10,6 @@
     <div class="w-full max-w-6xl bg-white rounded-lg shadow-md p-4">
         <h1 class="text-lg font-semibold text-center mb-3 text-gray-800">CSV Row Editor</h1>
 
-        <!-- Notification for Duplicate Words -->
-        {% if duplicate_word %}
-            <div id="duplicate-word-notification" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4 flex justify-between items-center" role="alert">
-                <div>
-                    <p class="font-bold">檢測到重複的詞語</p> 
-                    <p>下一個詞與當前詞相同。</p>
-                </div>
-                <button onclick="document.getElementById('duplicate-word-notification').style.display='none'" class="text-yellow-700 font-bold">&times;</button>
-            </div>
-        {% endif %}
-
         {% if entries %}
             <form method="post" action="{{ url_for('handle_submit') }}" class="space-y-2">
                 {% for entry in entries %}

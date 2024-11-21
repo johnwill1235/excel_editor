@@ -6,11 +6,10 @@ from werkzeug.utils import secure_filename
 from filelock import FileLock
 import time
 from datetime import datetime
-import shutil
 
 # Add to existing configuration
 FILE_LOCK_TIMEOUT = 30  # seconds
-FILE_RETENTION_PERIOD = 36000  # 10 hours in seconds
+FILE_RETENTION_PERIOD = 72000  # 20 hours in seconds
 LOCK_DIR = 'locks'
 os.makedirs(LOCK_DIR, exist_ok=True)
 
@@ -65,14 +64,31 @@ def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 def load_dataframe():
-    """Load DataFrame from session data and group by word"""
+    """Load DataFrame from session data and group by word, maintaining number order"""
     if 'csv_file_path' in session and os.path.exists(session['csv_file_path']):
         try:
             def read_and_group():
                 df = pd.read_csv(session['csv_file_path'])
+
+                # Replace NaN with empty strings for specific columns
+                for col in ['collocations', 'example_sentences']:
+                    if col in df.columns:
+                        df[col] = df[col].fillna('').astype(str)
+
+                # First sort by number to ensure overall numerical order
+                df = df.sort_values(by='number', ascending=True)
+                
+                # Group by word while maintaining the number order within groups
                 grouped = df.groupby('word', group_keys=False).apply(
                     lambda x: x.to_dict(orient='records')).to_dict()
-                return grouped
+                
+                # Sort the grouped dictionary by the minimum number in each word group
+                sorted_grouped = dict(sorted(
+                    grouped.items(),
+                    key=lambda item: min(entry['number'] for entry in item[1])
+                ))
+                
+                return sorted_grouped
             
             return safe_file_operation(session['csv_file_path'], read_and_group)
         except Exception as e:
@@ -84,11 +100,24 @@ def load_dataframe():
 @app.route('/', methods=['GET'])
 def index():
     try:
+        # Clean up old files first
+        cleanup_old_files()
+
+
+
         grouped_data = load_dataframe()
         current_index = session.get('current_index', 0)
 
-        if grouped_data is not None:
+        if grouped_data:
             words = list(grouped_data.keys())
+            if not words:
+                logger.debug("Grouped data is empty")
+                return render_template("index.html", entries=None)
+
+            if current_index >= len(words):
+                session['current_index'] = 0
+                current_index = 0
+
             current_word = words[current_index]
             entries = grouped_data[current_word]
 
@@ -109,12 +138,11 @@ def index():
         flash(f"Error loading data: {str(e)}", "error")
         return render_template("index.html", entries=None)
 
+
 @app.route('/load_csv', methods=['POST'])
 def load_csv():
     try:
-        # Clean up old files first
-        cleanup_old_files()
-        
+
         if 'csv_file' not in request.files:
             logger.warning("No file in request")
             flash('No file uploaded', 'error')
@@ -195,23 +223,23 @@ def handle_submit():
         if grouped_data is None:
             flash('No CSV file loaded', 'error')
             return redirect(url_for('index'))
-        
+
         current_index = session.get('current_index', 0)
         action = request.form.get('action')
         logger.debug(f"Handle submit action: {action}")
-        
+
         words = list(grouped_data.keys())
         current_word = words[current_index]
         entries = grouped_data[current_word]
 
-        # Save current entries if action is 'save', 'next', 'prev', or 'download'
-        if action in ['save', 'next', 'prev', 'download']:
+        # Save current entries if action is 'save', 'next', 'prev', 'download', or 'jump'
+        if action in ['save', 'next', 'prev', 'download', 'jump']:
             def save_changes():
                 for i, entry in enumerate(entries):
                     for column in REQUIRED_COLUMNS:
                         if column in ['word', 'number']:
                             continue  # Skip read-only fields
-                        
+
                         if column in ['collocations', 'example_sentences']:
                             values = request.form.getlist(f"{column}_{i}")
                             filtered_values = [v.strip() for v in values if v.strip()]
@@ -219,9 +247,9 @@ def handle_submit():
                         else:
                             form_data = request.form.get(f"{column}_{i}", '')
                             cleaned_data = form_data.strip()
-                        
+
                         entry[column] = cleaned_data
-                
+
                 # Convert the updated grouped data back to a DataFrame
                 updated_df = pd.DataFrame([entry for entries in grouped_data.values() for entry in entries])
                 updated_df.to_csv(session['csv_file_path'], index=False)
@@ -230,7 +258,7 @@ def handle_submit():
             if safe_file_operation(session['csv_file_path'], save_changes):
                 flash('Changes saved successfully!', 'success')
                 logger.debug("Changes saved to CSV")
-        
+
         # Navigate or download based on action
         if action == 'next' and current_index < len(words) - 1:
             session['current_index'] = current_index + 1
@@ -238,9 +266,19 @@ def handle_submit():
             session['current_index'] = current_index - 1
         elif action == 'download':
             return redirect(url_for('download_csv'))
-        
+        elif action == 'jump':
+            jump_to_index = request.form.get('jump_to_index')
+            try:
+                jump_to_index = int(jump_to_index)
+                if 1 <= jump_to_index <= len(words):
+                    session['current_index'] = jump_to_index - 1  # Adjust for zero-based index
+                else:
+                    flash(f"Invalid index: {jump_to_index}. Must be between 1 and {len(words)}.", 'error')
+            except ValueError:
+                flash(f"Invalid index: {jump_to_index}. Please enter a valid number.", 'error')
+
         return redirect(url_for('index'))
-        
+
     except Exception as e:
         logger.error(f"Error in handle_submit: {e}")
         flash(f"Error saving changes: {str(e)}", 'error')
@@ -254,10 +292,10 @@ def download_csv():
             def prepare_download():
                 # Read the original CSV file
                 df = pd.read_csv(session['csv_file_path'])
-                
+
                 # Sort the DataFrame by 'number' column in ascending order
                 sorted_df = df.sort_values(by='number', ascending=True)
-                
+
                 # Create a temporary copy for download
                 temp_dir = os.path.join(UPLOAD_FOLDER, 'temp')
                 os.makedirs(temp_dir, exist_ok=True)
@@ -282,7 +320,7 @@ def download_csv():
         flash(f"Error downloading file: {str(e)}", 'error')
         return redirect(url_for('index'))
 
-       
+
 @app.errorhandler(404)
 def not_found_error(error):
     logger.error(f"404 error: {error}")

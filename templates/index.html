@@ -5,127 +5,156 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CSV Row Editor</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #f6f8f9 0%, #e5ebee 100%);
+        }
+        .input-readonly {
+            background-color: #f9fafb;
+            cursor: not-allowed;
+            border-color: #e5e7eb;
+        }
+        .input-editable:focus {
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+            border-color: #3b82f6;
+        }
+    </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen p-2">
-    <div class="w-full max-w-6xl bg-white rounded-lg shadow-md p-4">
-        <h1 class="text-lg font-semibold text-center mb-3 text-gray-800">CSV Row Editor</h1>
+<body class="min-h-screen flex items-center justify-center p-2">
+    <div class="w-full max-w-6xl bg-white rounded-2xl shadow-2xl overflow-hidden">
+        <div class="bg-gradient-to-r from-blue-500 to-purple-600 p-2">
+            <h1 class="text-lg font-bold text-center text-white">CSV Row Editor</h1>
+        </div>
+        
+        <div class="p-3">
+            {% if entries %}
+                <form method="post" action="{{ url_for('handle_submit') }}" class="space-y-2">
+                    {% for entry in entries %}
+                        {% set i = loop.index0 %}
+                        
+                        <div class="bg-gray-50 p-2 rounded-lg border border-gray-200 shadow-sm">
+                            <div class="grid grid-cols-3 gap-2 mb-2">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">詞目</label>
+                                    <input type="text" name="word_{{ i }}" value="{{ entry['word'] }}" 
+                                        class="input-readonly w-full p-1 text-sm rounded-md border text-gray-600" readonly>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">序號</label>
+                                    <input type="text" name="number_{{ i }}" value="{{ entry['number'] }}" 
+                                        class="input-readonly w-full p-1 text-sm rounded-md border text-gray-600" readonly>
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">原始定義</label>
+                                    <input type="text" name="old_definition_{{ i }}" value="{{ entry['old_definition'] }}" 
+                                        class="input-readonly w-full p-1 text-sm rounded-md border text-gray-600" readonly>
+                                </div>
+                            </div>
 
-        {% if entries %}
-            <form method="post" action="{{ url_for('handle_submit') }}" class="space-y-2">
-                {% for entry in entries %}
-                    {% set i = loop.index0 %}
+                            <div class="grid grid-cols-3 gap-2 mb-2">
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">定義</label>
+                                    <input type="text" name="definition_{{ i }}" value="{{ entry['definition'] }}" 
+                                        class="input-editable w-full p-1 text-sm rounded-md border border-gray-300 transition-all">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">英譯</label>
+                                    <input type="text" name="translation_{{ i }}" value="{{ entry['translation'] }}" 
+                                        class="input-editable w-full p-1 text-sm rounded-md border border-gray-300 transition-all">
+                                </div>
+                                <div>
+                                    <label class="block text-xs font-medium text-gray-700 mb-1">詞類</label>
+                                    <input type="text" name="part_of_speech_{{ i }}" value="{{ entry['part_of_speech'] }}" 
+                                        class="input-editable w-full p-1 text-sm rounded-md border border-gray-300 transition-all">
+                                </div>
+                            </div>
+
+                            <div class="mb-2">
+                                <label class="block text-xs font-medium text-gray-700 mb-1">搭配詞</label>
+                                <div id="collocations-container-{{ i }}" class="flex flex-wrap gap-1">
+                                    {% for collocation in (entry['collocations'] | default('')).split(' / ') %}
+                                        <input type="text" name="collocations_{{ i }}" value="{{ collocation }}" 
+                                            class="collocation-input w-auto p-1 text-sm rounded-md border border-gray-300">
+                                    {% endfor %}
+                                </div>
+                            </div>
+                            
+                            <div>
+                                <label class="block text-xs font-medium text-gray-700 mb-1">例句（五個，至少一個搭配詞）</label>
+                                <div id="example-sentences-container-{{ i }}" class="grid grid-cols-2 gap-1">
+                                    {% for sentence in (entry['example_sentences'] | default('')).split(' / ') %}
+                                        <input type="text" name="example_sentences_{{ i }}" value="{{ sentence }}" 
+                                            class="example-sentence-input w-full p-1 text-sm rounded-md border border-gray-300">
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+
+                    <div class="grid grid-cols-4 gap-2 mt-2">
+                        <button type="submit" name="action" value="prev" 
+                                class="w-full bg-gray-500 text-white p-2 text-sm rounded-lg hover:bg-gray-600 transition 
+                                {% if current_word_index <= 1 %}opacity-50 cursor-not-allowed{% endif %}"
+                                {% if current_word_index <= 1 %}disabled{% endif %}>
+                            上一頁
+                        </button>
+                        <button type="submit" name="action" value="next" 
+                                class="w-full bg-gray-500 text-white p-2 text-sm rounded-lg hover:bg-gray-600 transition 
+                                {% if current_word_index >= total_words %}opacity-50 cursor-not-allowed{% endif %}"
+                                {% if current_word_index >= total_words %}disabled{% endif %}>
+                            下一頁
+                        </button>
+                        <button type="submit" name="action" value="save" 
+                                class="w-full bg-blue-500 text-white p-2 text-sm rounded-lg hover:bg-blue-600 transition">
+                            儲存
+                        </button>
+                        <button type="submit" name="action" value="download"
+                                class="w-full bg-green-500 text-white p-2 text-sm rounded-lg hover:bg-green-600 transition">
+                            儲存並下載CSV
+                        </button>
+                    </div>
                     
-                    <hr class="my-4 border-t-2 border-gray-200">
-                    
-                    <div class="flex space-x-2">
-                        <div class="flex flex-col w-1/4">
-                            <label for="word_{{ i }}" class="text-gray-700 text-xs font-medium">詞目</label>
-                            <input type="text" name="word_{{ i }}" value="{{ entry['word'] }}" 
-                                class="bg-gray-100 text-gray-600 border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none cursor-not-allowed" 
-                                readonly>
+                    {% if total_words %}
+                        <div class="mt-2">
+                            <div class="h-2 w-full bg-gray-300 rounded-full overflow-hidden">
+                                <div class="h-2 bg-gradient-to-r from-blue-500 to-purple-600" 
+                                     style="width: {{ ((current_word_index / total_words) * 100)|round(2) }}%">
+                                </div>
+                            </div>
+                            <div class="flex justify-center items-center mt-1">
+                                <input type="number" name="jump_to_index" value="{{ current_word_index }}" 
+                                       min="1" max="{{ total_words }}" 
+                                       class="w-16 text-center p-1 text-sm mx-2 border rounded">
+                                <span class="text-xs text-gray-600">/ {{ total_words }}</span>
+                                <button type="submit" name="action" value="jump" 
+                                        class="ml-2 bg-purple-500 text-white px-2 py-1 text-sm rounded-lg hover:bg-purple-600 transition">
+                                    跳轉
+                                </button>
+                            </div>
                         </div>
-                        <div class="flex flex-col w-1/4">
-                            <label for="number_{{ i }}" class="text-gray-700 text-xs font-medium">序號</label>
-                            <input type="text" name="number_{{ i }}" value="{{ entry['number'] }}" 
-                                class="bg-gray-100 text-gray-600 border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none cursor-not-allowed" 
-                                readonly>
-                        </div>
-                        <div class="flex flex-col w-2/4">
-                            <label for="old_definition_{{ i }}" class="text-gray-700 text-xs font-medium">教育部本來的定義</label>
-                            <input type="text" name="old_definition_{{ i }}" value="{{ entry['old_definition'] }}" 
-                                class="bg-gray-100 text-gray-600 border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none cursor-not-allowed" 
-                                readonly>
-                        </div>
-                    </div>
-
-                    <div class="flex space-x-2">
-                        <div class="flex flex-col w-5/12">
-                            <label for="definition_{{ i }}" class="text-gray-700 text-xs font-medium">定義</label>
-                            <input type="text" name="definition_{{ i }}" value="{{ entry['definition'] }}" 
-                                class="border border-gray-300 rounded p-1 mt-1 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-                        </div>
-                        <div class="flex flex-col w-6/12">
-                            <label for="translation_{{ i }}" class="text-gray-700 text-xs font-medium">英譯</label>
-                            <input type="text" name="translation_{{ i }}" value="{{ entry['translation'] }}" 
-                                class="border border-gray-300 rounded p-1 mt-1 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-                        </div>
-                        <div class="flex flex-col w-1/12">
-                            <label for="part_of_speech_{{ i }}" class="text-gray-700 text-xs font-medium">詞類</label>
-                            <input type="text" name="part_of_speech_{{ i }}" value="{{ entry['part_of_speech'] }}" 
-                                class="border border-gray-300 rounded p-1 mt-1 w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-400">
-                        </div>
-                    </div>
-
-                    <div class="flex flex-col">
-                        <label for="collocations_{{ i }}" class="text-gray-700 text-xs font-medium">搭配詞</label>
-                        <div id="collocations-container-{{ i }}" class="flex flex-wrap gap-2">
-                            {% for collocation in (entry['collocations'] | default('')).split(' / ') %}
-                                <input type="text" name="collocations_{{ i }}" value="{{ collocation }}" 
-                                    class="collocation-input border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none">
-                            {% endfor %}
-                        </div>
-                    </div>
-                    
-                    <div class="flex flex-col">
-                        <label for="example_sentences_{{ i }}" class="text-gray-700 text-xs font-medium">例句（請刪到五個，剩下五個之中至少一個搭配詞）</label>
-                        <div id="example-sentences-container-{{ i }}" class="grid grid-cols-2 gap-2">
-                            {% for sentence in (entry['example_sentences'] | default('')).split(' / ') %}
-                                <input type="text" name="example_sentences_{{ i }}" value="{{ sentence }}" 
-                                    class="example-sentence-input border border-gray-300 rounded p-1 mt-1 text-sm focus:outline-none">
-                            {% endfor %}
-                        </div>
-                    </div>
-                {% endfor %}
-
-                <!-- Navigation and Save Buttons -->
-                <div class="grid grid-cols-4 gap-2 mt-4">
-                    <button type="submit" name="action" value="prev" 
-                            class="w-full bg-gray-400 text-white text-sm font-semibold py-2 rounded hover:bg-gray-500 transition {% if current_word_index <= 1 %}opacity-50 cursor-not-allowed{% endif %}"
-                            {% if current_word_index <= 1 %}disabled{% endif %}>
-                        上一頁
-                    </button>
-                    <button type="submit" name="action" value="next" 
-                            class="w-full bg-gray-400 text-white text-sm font-semibold py-2 rounded hover:bg-gray-500 transition {% if current_word_index >= total_words %}opacity-50 cursor-not-allowed{% endif %}"
-                            {% if current_word_index >= total_words %}disabled{% endif %}>
-                        下一頁
-                    </button>
-                    <button type="submit" name="action" value="save" 
-                            class="w-full bg-blue-500 text-white text-sm font-semibold py-2 rounded hover:bg-blue-600 transition">
-                        儲存
-                    </button>
-                    <button type="submit" name="action" value="download"
-                            class="w-full bg-green-500 text-white text-sm font-semibold py-2 rounded hover:bg-green-600 transition">
-                        儲存並下載CSV
-                    </button>
+                    {% endif %}
+                </form>
+            {% else %}
+                <div class="flex flex-col items-center justify-center space-y-2 p-4">
+                    <form method="post" enctype="multipart/form-data" action="{{ url_for('load_csv') }}" 
+                          class="w-full max-w-md text-center">
+                        <input type="file" name="csv_file" accept=".csv" 
+                               class="mb-2 w-full p-2 border-2 border-dashed border-gray-300 rounded-lg 
+                                      text-gray-600 file:mr-2 file:py-1 file:px-3 file:rounded-full 
+                                      file:border-0 file:text-xs file:bg-blue-50 file:text-blue-700 
+                                      hover:file:bg-blue-100">
+                        <button type="submit" 
+                                class="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white 
+                                       p-2 text-sm rounded-lg hover:opacity-90 transition">
+                            載入 CSV
+                        </button>
+                    </form>
+                    <p class="text-gray-500 text-xs">請載入 CSV 檔案開始編輯</p>
                 </div>
-                
-                {% if total_words %}
-                    <div class="mt-4">
-                        <div class="h-4 w-full bg-gray-300 rounded">
-                            <div class="h-4 bg-red-500 rounded" style="width: {{ ((current_word_index / total_words) * 100)|round(2) }}%"></div>
-                        </div>
-                        <div class="flex justify-center items-center mt-1">
-                            <p class="text-xs text-gray-600 text-center mr-2">Progress:</p>
-                            <input type="number" name="jump_to_index" value="{{ current_word_index }}" min="1" max="{{ total_words }}" class="w-16 text-center border rounded text-xs">
-                            <p class="text-xs text-gray-600 text-center ml-2 mr-2">/ {{ total_words }}</p>
-                            <button type="submit" name="action" value="jump" class="bg-purple-500 text-white text-xs font-semibold py-1 px-2 rounded hover:bg-purple-600 transition">
-                                跳轉
-                            </button>
-                        </div>
-                    </div>
-                {% endif %}
-            </form>
-        {% else %}
-            <form method="post" enctype="multipart/form-data" action="{{ url_for('load_csv') }}" class="flex flex-col items-center space-y-2">
-                <input type="file" name="csv_file" accept=".csv" class="items-center block w-full text-gray-600 py-1 px-2 border border-gray-300 rounded-lg cursor-pointer bg-gray-100 text-xs">
-                <button type="submit" class="bg-green-500 text-white text-sm font-bold py-2 px-4 rounded hover:bg-green-600 transition">
-                    Load CSV
-                </button>
-            </form>
-            <p class="text-center text-gray-500 text-xs mt-2">Please load a CSV file to begin.</p>
-        {% endif %}
+            {% endif %}
+        </div>
     </div>
-    
+
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             // Function to handle color updates for a single entry
@@ -134,10 +163,10 @@
                 const exampleSentencesContainer = document.getElementById(`example-sentences-container-${index}`);
                 
                 if (!collocationsContainer || !exampleSentencesContainer) return;
-
+    
                 const collocationInputs = collocationsContainer.getElementsByClassName('collocation-input');
                 const exampleSentenceInputs = exampleSentencesContainer.getElementsByClassName('example-sentence-input');
-
+    
                 function updateCollocationColors() {
                     let nonEmptyCount = 0;
                     for (let input of collocationInputs) {
@@ -150,26 +179,26 @@
                         input.style.borderColor = color;
                     }
                 }
-
+    
                 function updateExampleSentenceColors() {
                     const currentCollocations = Array.from(collocationInputs)
                         .map(input => input.value.trim().toLowerCase())
                         .filter(val => val !== '');
-
+    
                     const nonEmptyExampleSentences = Array.from(exampleSentenceInputs)
                         .filter(input => input.value.trim() !== '').length;
-
+    
                     for (let input of exampleSentenceInputs) {
                         const sentence = input.value.trim().toLowerCase();
                         let hasCollocation = false;
-
+    
                         for (let colloc of currentCollocations) {
                             if (colloc && sentence.includes(colloc)) {
                                 hasCollocation = true;
                                 break;
                             }
                         }
-
+    
                         if (hasCollocation) {
                             input.style.borderColor = 'blue';
                         } else {
@@ -177,29 +206,29 @@
                         }
                     }
                 }
-
+    
                 // Add event listeners for this entry
                 collocationsContainer.addEventListener('input', function() {
                     updateCollocationColors();
                     updateExampleSentenceColors();
                 });
-
+    
                 exampleSentencesContainer.addEventListener('input', function() {
                     updateExampleSentenceColors();
                 });
-
+    
                 // Initial update for this entry
                 updateCollocationColors();
                 updateExampleSentenceColors();
             }
-
+    
             // Find all entries and set up validation for each
             const entries = document.querySelectorAll('[id^="collocations-container-"]');
             entries.forEach(entry => {
                 const index = entry.id.split('-').pop();
                 setupEntryValidation(index);
             });
-
+    
             var jumpInput = document.querySelector('input[name="jump_to_index"]');
            
             if (jumpInput) {
@@ -227,3 +256,8 @@
     </script>
 </body>
 </html>
+
+
+
+
+

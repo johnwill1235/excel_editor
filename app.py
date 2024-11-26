@@ -207,13 +207,13 @@ def handle_submit():
         elif action == 'jump':
             jump_to_index = request.form.get('jump_to_index')
             try:
-                jump_to_index = int(jump_to_index) - 1  # Adjust for zero-based index
+                jump_to_index = int(jump_to_index) - 1  # Adjust for 1-based index
                 if 0 <= jump_to_index < len(words):
                     current_index = jump_to_index
                 else:
                     flash(f"Invalid index: {jump_to_index + 1}. Must be between 1 and {len(words)}.", 'error')
             except ValueError:
-                flash(f"Invalid index: {jump_to_index}. Please enter a valid number.", 'error')
+                flash(f"Invalid input: {jump_to_index}. Please enter a valid number.", 'error')
 
         return redirect(url_for('index', csv_file_path=csv_file_path, current_index=current_index))
 

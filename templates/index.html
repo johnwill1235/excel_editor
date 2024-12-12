@@ -10,16 +10,23 @@
         body {
             background: linear-gradient(135deg, #f6f8f9 0%, #e5ebee 100%);
         }
-
+    
         .input-readonly {
             background-color: #f9fafb;
             cursor: not-allowed;
             border-color: #e5e7eb;
         }
-
+    
         .input-editable:focus {
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
             border-color: #3b82f6;
+        }
+    
+        /* Add new styles for problematic words highlighting */
+        .problematic-highlight {
+            background-color: #f9fafb !important;
+            border-color: #e5e7eb !important;
+            color: #666 !important;
         }
     </style>
 </head>
@@ -78,6 +85,17 @@
                                         class="input-editable w-full p-1 text-sm rounded-md border border-gray-300 transition-all">
                                 </div>
                             </div>
+
+                            {% if has_problematic_words and entry.get('problematic_words') %}
+                                <div class="grid grid-cols-3 gap-2 mb-2">
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-700 mb-1">潛在問題詞</label>
+                                        <input type="text" value="{{ entry['problematic_words'] }}"
+                                            class="input-readonly w-full p-1 text-sm rounded-md border text-gray-600"
+                                            readonly>
+                                    </div>
+                                </div>
+                            {% endif %}
 
                             <!-- Collocations Field -->
                             <div class="mb-2">
@@ -189,7 +207,7 @@
                             nonEmptyCount++;
                         }
                     }
-                    const color = (nonEmptyCount === 5) ? 'green' : 'red';
+                    const color = (nonEmptyCount === 6) ? 'green' : 'red';
                     for (let input of collocationInputs) {
                         input.style.borderColor = color;
                     }
@@ -217,10 +235,49 @@
                         if (hasCollocation) {
                             input.style.borderColor = 'blue';
                         } else {
-                            input.style.borderColor = (nonEmptyExampleSentences === 5) ? 'green' : 'red';
+                            input.style.borderColor = (nonEmptyExampleSentences === 6) ? 'green' : 'red';
                         }
                     }
                 }
+
+                function setupProblematicWordsHighlight(index) {
+                    const problematicWordsInput = document.querySelector(`[data-entry-index="${index}"] input[readonly]`);
+                    if (!problematicWordsInput) return;
+
+                    const problematicWords = problematicWordsInput.value.split(',').map(word => word.trim());
+                    const definitionInput = document.querySelector(`[name="definition_${index}"]`);
+                    const translationInput = document.querySelector(`[name="translation_${index}"]`);
+                    const partOfSpeechInput = document.querySelector(`[name="part_of_speech_${index}"]`);
+
+                    const inputs = [definitionInput, translationInput, partOfSpeechInput];
+
+                    inputs.forEach(input => {
+                        if (!input) return;
+
+                        input.addEventListener('input', function() {
+                            const text = this.value.toLowerCase();
+                            const hasProblematicWord = problematicWords.some(word => 
+                                text.includes(word.toLowerCase())
+                            );
+
+                            if (hasProblematicWord) {
+                                this.classList.add('problematic-highlight');
+                            } else {
+                                this.classList.remove('problematic-highlight');
+                            }
+                        });
+
+                        // Initial check
+                        input.dispatchEvent(new Event('input'));
+                    });
+                }
+
+                // Set up problematic words highlighting for all entries
+                const entries = document.querySelectorAll('[data-entry-index]');
+                entries.forEach(entry => {
+                    const index = entry.getAttribute('data-entry-index');
+                    setupProblematicWordsHighlight(index);
+                });
 
                 // Add event listeners for this entry
                 collocationsContainer.addEventListener('input', function () {

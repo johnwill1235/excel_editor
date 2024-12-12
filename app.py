@@ -17,14 +17,13 @@ UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'csv'}
 REQUIRED_COLUMNS = ["word", "number", "old_definition", "translation",
                     "definition", "example_sentences", "part_of_speech", "collocations"]
+OPTIONAL_COLUMNS = ["problematic_words"]  # New optional columns
 
 # Create uploads directory if it doesn't exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 
-
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
 
 def load_dataframe(csv_file_path):
     """Load DataFrame from CSV file and group by word, maintaining number order"""
@@ -33,7 +32,7 @@ def load_dataframe(csv_file_path):
             df = pd.read_csv(csv_file_path)
 
             # Replace NaN with empty strings for specific columns
-            for col in ['collocations', 'example_sentences']:
+            for col in ['collocations', 'example_sentences', 'problematic_words']:
                 if col in df.columns:
                     df[col] = df[col].fillna('').astype(str)
 
@@ -81,6 +80,9 @@ def index():
             current_word = words[current_index]
             entries = grouped_data[current_word]
 
+            # Check if problematic_words column exists in the data
+            has_problematic_words = any('problematic_words' in entry for entry in entries)
+
             logger.debug(f"Data for word '{current_word}' loaded. Number of entries: {len(entries)}")
 
             return render_template(
@@ -89,7 +91,8 @@ def index():
                 total_words=len(words),
                 current_word_index=current_index + 1,
                 csv_file_path=csv_file_path,
-                current_index=current_index
+                current_index=current_index,
+                has_problematic_words=has_problematic_words
             )
         else:
             logger.debug("No DataFrame available")

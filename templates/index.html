@@ -21,12 +21,31 @@
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
             border-color: #3b82f6;
         }
-    
-        /* Add new styles for problematic words highlighting */
-        .problematic-highlight {
-            background-color: #f9fafb !important;
-            border-color: #e5e7eb !important;
-            color: #666 !important;
+
+        /* Highlighted words */
+        .highlight-word {
+            background-color: #ffffc5;
+            padding: 0 2px;
+            border-radius: 2px;
+        }
+
+        /* Styles for contenteditable divs */
+        .editable-field {
+            border: 1px solid #d1d5db;
+            border-radius: 0.375rem;
+            padding: 0.25rem;
+            min-height: 1.5rem;
+            background-color: #fff;
+            font-size: 0.875rem;
+            line-height: 1.25rem;
+            color: #000;
+            overflow-wrap: break-word;
+        }
+
+        .editable-field:focus {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+            border-color: #3b82f6;
         }
     </style>
 </head>
@@ -47,7 +66,7 @@
 
                     {% for entry in entries %}
                         {% set i = loop.index0 %}
-                        <div class="bg-gray-50 p-2 rounded-lg border border-gray-200 shadow-sm">
+                        <div class="bg-gray-50 p-2 rounded-lg border border-gray-200 shadow-sm" data-entry-index="{{ i }}">
                             <!-- Word and Number Fields -->
                             <div class="grid grid-cols-3 gap-2 mb-2">
                                 <div>
@@ -71,18 +90,22 @@
                             <div class="grid grid-cols-3 gap-2 mb-2">
                                 <div>
                                     <label class="block text-xs font-medium text-gray-700 mb-1">定義</label>
-                                    <input type="text" name="definition_{{ i }}" value="{{ entry['definition'] }}"
-                                        class="input-editable w-full p-1 text-sm rounded-md border border-gray-300 transition-all">
+                                    <!-- ADDED: contenteditable div + hidden input -->
+                                    <div class="editable-field input-editable" contenteditable="true"
+                                        data-field-type="definition" data-index="{{ i }}">{{ entry['definition'] }}</div>
+                                    <input type="hidden" name="definition_{{ i }}" value="{{ entry['definition'] }}">
                                 </div>
                                 <div>
                                     <label class="block text-xs font-medium text-gray-700 mb-1">英譯</label>
-                                    <input type="text" name="translation_{{ i }}" value="{{ entry['translation'] }}"
-                                        class="input-editable w-full p-1 text-sm rounded-md border border-gray-300 transition-all">
+                                    <div class="editable-field input-editable" contenteditable="true"
+                                        data-field-type="translation" data-index="{{ i }}">{{ entry['translation'] }}</div>
+                                    <input type="hidden" name="translation_{{ i }}" value="{{ entry['translation'] }}">
                                 </div>
                                 <div>
                                     <label class="block text-xs font-medium text-gray-700 mb-1">詞類</label>
-                                    <input type="text" name="part_of_speech_{{ i }}" value="{{ entry['part_of_speech'] }}"
-                                        class="input-editable w-full p-1 text-sm rounded-md border border-gray-300 transition-all">
+                                    <div class="editable-field input-editable" contenteditable="true"
+                                        data-field-type="part_of_speech" data-index="{{ i }}">{{ entry['part_of_speech'] }}</div>
+                                    <input type="hidden" name="part_of_speech_{{ i }}" value="{{ entry['part_of_speech'] }}">
                                 </div>
                             </div>
 
@@ -90,8 +113,9 @@
                                 <div class="grid grid-cols-3 gap-2 mb-2">
                                     <div>
                                         <label class="block text-xs font-medium text-gray-700 mb-1">潛在問題詞</label>
-                                        <input type="text" value="{{ entry['problematic_words'] }}"
-                                            class="input-readonly w-full p-1 text-sm rounded-md border text-gray-600"
+                                        <input type="text"
+                                            value="{{ entry['problematic_words'] }}"
+                                            class="input-readonly w-full p-1 text-sm rounded-md border text-gray-600 problematic-words"
                                             readonly>
                                     </div>
                                 </div>
@@ -102,20 +126,22 @@
                                 <label class="block text-xs font-medium text-gray-700 mb-1">搭配詞</label>
                                 <div id="collocations-container-{{ i }}" class="flex flex-wrap gap-1">
                                     {% for collocation in (entry['collocations'] | default('')).split(' / ') %}
-                                        <input type="text" name="collocations_{{ i }}" value="{{ collocation }}"
-                                            class="collocation-input w-auto p-1 text-sm rounded-md border border-gray-300">
+                                        <div class="editable-field input-editable" contenteditable="true"
+                                            data-field-type="collocations" data-index="{{ i }}">{{ collocation }}</div>
                                     {% endfor %}
+                                    <!-- Hidden inputs for collocations will be generated dynamically on submit -->
                                 </div>
                             </div>
 
-                            <!-- Example Sentences Field -->
+                            <!-- Example Sentences Field (changed to contenteditable for highlighting) -->
                             <div>
                                 <label class="block text-xs font-medium text-gray-700 mb-1">例句（五個，至少一個搭配詞）</label>
                                 <div id="example-sentences-container-{{ i }}" class="grid grid-cols-2 gap-1">
                                     {% for sentence in (entry['example_sentences'] | default('')).split(' / ') %}
-                                        <input type="text" name="example_sentences_{{ i }}" value="{{ sentence }}"
-                                            class="example-sentence-input w-full p-1 text-sm rounded-md border border-gray-300">
+                                        <div class="editable-field input-editable" contenteditable="true"
+                                            data-field-type="example_sentences" data-index="{{ i }}">{{ sentence }}</div>
                                     {% endfor %}
+                                    <!-- Hidden inputs for example sentences will be generated dynamically on submit -->
                                 </div>
                             </div>
                         </div>
@@ -190,39 +216,53 @@
 
     <script>
         document.addEventListener('DOMContentLoaded', function () {
-            // Function to handle color updates for a single entry
+            // Function to handle color updates and problematic words highlighting for a single entry
             function setupEntryValidation(index) {
                 const collocationsContainer = document.getElementById(`collocations-container-${index}`);
                 const exampleSentencesContainer = document.getElementById(`example-sentences-container-${index}`);
 
                 if (!collocationsContainer || !exampleSentencesContainer) return;
 
-                const collocationInputs = collocationsContainer.getElementsByClassName('collocation-input');
-                const exampleSentenceInputs = exampleSentencesContainer.getElementsByClassName('example-sentence-input');
+                // Get all editable fields in this entry
+                const editableFields = document.querySelectorAll(`[data-entry-index="${index}"] .editable-field[data-field-type]`);
 
-                function updateCollocationColors() {
-                    let nonEmptyCount = 0;
-                    for (let input of collocationInputs) {
-                        if (input.value.trim() !== '') {
-                            nonEmptyCount++;
-                        }
-                    }
-                    const color = (nonEmptyCount === 6) ? 'green' : 'red';
-                    for (let input of collocationInputs) {
-                        input.style.borderColor = color;
-                    }
+                // Get problematic words from the problematic_words input
+                const entryDiv = document.querySelector(`[data-entry-index="${index}"]`);
+                const problematicWordsInput = entryDiv.querySelector('.problematic-words');
+                let problematicWords = [];
+                if (problematicWordsInput) {
+                    problematicWords = problematicWordsInput.value.split(',').map(word => word.trim()).filter(word => word.length > 0);
                 }
 
+                // Function to update collocation colors
+                function updateCollocationColors() {
+                    const collocationDivs = collocationsContainer.querySelectorAll('[data-field-type="collocations"]');
+                    let nonEmptyCount = 0;
+                    collocationDivs.forEach(div => {
+                        if (div.textContent.trim() !== '') {
+                            nonEmptyCount++;
+                        }
+                    });
+                    const color = (nonEmptyCount === 6) ? 'green' : 'red';
+                    collocationDivs.forEach(div => {
+                        div.style.borderColor = color;
+                    });
+                }
+
+                // Function to update example sentence colors
                 function updateExampleSentenceColors() {
-                    const currentCollocations = Array.from(collocationInputs)
-                        .map(input => input.value.trim().toLowerCase())
+                    const collocationDivs = collocationsContainer.querySelectorAll('[data-field-type="collocations"]');
+                    const exampleSentenceDivs = exampleSentencesContainer.querySelectorAll('[data-field-type="example_sentences"]');
+
+                    const currentCollocations = Array.from(collocationDivs)
+                        .map(div => div.textContent.trim().toLowerCase())
                         .filter(val => val !== '');
 
-                    const nonEmptyExampleSentences = Array.from(exampleSentenceInputs)
-                        .filter(input => input.value.trim() !== '').length;
+                    const nonEmptyExampleSentences = Array.from(exampleSentenceDivs)
+                        .filter(div => div.textContent.trim() !== '').length;
 
-                    for (let input of exampleSentenceInputs) {
-                        const sentence = input.value.trim().toLowerCase();
+                    exampleSentenceDivs.forEach(div => {
+                        const sentence = div.textContent.trim().toLowerCase();
                         let hasCollocation = false;
 
                         for (let colloc of currentCollocations) {
@@ -233,85 +273,166 @@
                         }
 
                         if (hasCollocation) {
-                            input.style.borderColor = 'blue';
+                            div.style.borderColor = 'blue';
                         } else {
-                            input.style.borderColor = (nonEmptyExampleSentences === 6) ? 'green' : 'red';
+                            div.style.borderColor = (nonEmptyExampleSentences === 6) ? 'green' : 'red';
                         }
-                    }
-                }
-
-                function setupProblematicWordsHighlight(index) {
-                    const problematicWordsInput = document.querySelector(`[data-entry-index="${index}"] input[readonly]`);
-                    if (!problematicWordsInput) return;
-
-                    const problematicWords = problematicWordsInput.value.split(',').map(word => word.trim());
-                    const definitionInput = document.querySelector(`[name="definition_${index}"]`);
-                    const translationInput = document.querySelector(`[name="translation_${index}"]`);
-                    const partOfSpeechInput = document.querySelector(`[name="part_of_speech_${index}"]`);
-
-                    const inputs = [definitionInput, translationInput, partOfSpeechInput];
-
-                    inputs.forEach(input => {
-                        if (!input) return;
-
-                        input.addEventListener('input', function() {
-                            const text = this.value.toLowerCase();
-                            const hasProblematicWord = problematicWords.some(word => 
-                                text.includes(word.toLowerCase())
-                            );
-
-                            if (hasProblematicWord) {
-                                this.classList.add('problematic-highlight');
-                            } else {
-                                this.classList.remove('problematic-highlight');
-                            }
-                        });
-
-                        // Initial check
-                        input.dispatchEvent(new Event('input'));
                     });
                 }
 
-                // Set up problematic words highlighting for all entries
-                const entries = document.querySelectorAll('[data-entry-index]');
-                entries.forEach(entry => {
-                    const index = entry.getAttribute('data-entry-index');
-                    setupProblematicWordsHighlight(index);
+                // Function to highlight problematic words in a field
+                function highlightProblematicWords(field) {
+                    let text = field.textContent;
+                    // Escape HTML first
+                    text = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+                    // Sort problematic words by length descending to avoid nested replacement issues
+                    const sortedWords = [...problematicWords].sort((a, b) => b.length - a.length);
+
+                    // Replace each problematic word with a span
+                    sortedWords.forEach(word => {
+                        if (word === '') return;
+                        const regex = new RegExp(`(${escapeRegExp(word)})`, 'g');
+                        text = text.replace(regex, '<span class="highlight-word">$1</span>');
+                    });
+
+                    // Update the field's HTML
+                    field.innerHTML = text;
+                }
+
+                // Utility function to escape regex special characters
+                function escapeRegExp(string) {
+                    return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                }
+
+                // Event listener for blur events to re-highlight words
+                function onFieldBlur(event) {
+                    const field = event.target;
+                    const plainText = field.textContent;
+                    // Remove existing highlight spans
+                    field.innerHTML = ''; // Clear existing content
+                    field.textContent = plainText; // Reset to plain text
+                    highlightProblematicWords(field); // Apply highlighting
+                }
+
+                // Attach event listeners and perform initial highlighting
+                editableFields.forEach(field => {
+                    // Initial highlighting
+                    highlightProblematicWords(field);
+
+                    // Listen for blur events to re-highlight
+                    field.addEventListener('blur', onFieldBlur);
                 });
 
-                // Add event listeners for this entry
-                collocationsContainer.addEventListener('input', function () {
-                    updateCollocationColors();
-                    updateExampleSentenceColors();
-                });
+                // Attach event listeners for collocations and example sentences color updates
+                if (collocationsContainer) {
+                    collocationsContainer.addEventListener('input', function () {
+                        updateCollocationColors();
+                        updateExampleSentenceColors();
+                    });
+                }
 
-                exampleSentencesContainer.addEventListener('input', function () {
-                    updateExampleSentenceColors();
-                });
+                if (exampleSentencesContainer) {
+                    exampleSentencesContainer.addEventListener('input', function () {
+                        updateExampleSentenceColors();
+                    });
+                }
 
-                // Initial update for this entry
+                // Initial color updates
                 updateCollocationColors();
                 updateExampleSentenceColors();
             }
 
-            // Find all entries and set up validation for each
-            const entries = document.querySelectorAll('[id^="collocations-container-"]');
+            // Utility function to escape regex special characters
+            function escapeRegExp(string) {
+                return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            }
+
+            // Function to prepare form data before submission
+            function prepareFormBeforeSubmit(e) {
+                const form = e.target;
+                const entries = form.querySelectorAll('[data-entry-index]');
+
+                entries.forEach(entry => {
+                    const index = entry.getAttribute('data-entry-index');
+                    const editableFields = entry.querySelectorAll('.editable-field[data-field-type]');
+
+                    // Prepare collocations and example sentences
+                    let collocations = [];
+                    let exampleSentences = [];
+
+                    editableFields.forEach(field => {
+                        const type = field.getAttribute('data-field-type');
+                        const indexAttr = field.getAttribute('data-index');
+                        const textContent = field.textContent.trim();
+
+                        if (type === 'definition' || type === 'translation' || type === 'part_of_speech') {
+                            const hiddenInput = entry.querySelector(`input[name="${type}_${indexAttr}"]`);
+                            if (hiddenInput) {
+                                hiddenInput.value = textContent;
+                            }
+                        }
+
+                        if (type === 'collocations') {
+                            collocations.push(textContent);
+                        }
+
+                        if (type === 'example_sentences') {
+                            exampleSentences.push(textContent);
+                        }
+                    });
+
+                    // Update collocations hidden inputs
+                    let existingCollocationInputs = entry.querySelectorAll(`input[name="collocations_${index}"]`);
+                    existingCollocationInputs.forEach(input => input.remove());
+
+                    collocations.forEach(colloc => {
+                        let hiddenInput = document.createElement('input');
+                        hiddenInput.type = 'hidden';
+                        hiddenInput.name = `collocations_${index}`;
+                        hiddenInput.value = colloc;
+                        form.appendChild(hiddenInput);
+                    });
+
+                    // Update example sentences hidden inputs
+                    let existingExampleInputs = entry.querySelectorAll(`input[name="example_sentences_${index}"]`);
+                    existingExampleInputs.forEach(input => input.remove());
+
+                    exampleSentences.forEach(sentence => {
+                        let hiddenInput = document.createElement('input');
+                        hiddenInput.type = 'hidden';
+                        hiddenInput.name = `example_sentences_${index}`;
+                        hiddenInput.value = sentence;
+                        form.appendChild(hiddenInput);
+                    });
+                });
+            }
+
+            // Attach submit event to handle form data properly
+            const mainForm = document.querySelector('form');
+            if (mainForm) {
+                mainForm.addEventListener('submit', prepareFormBeforeSubmit);
+            }
+
+            // Setup validation and problematic words highlighting for each entry
+            const entries = document.querySelectorAll('[data-entry-index]');
             entries.forEach(entry => {
-                const index = entry.id.split('-').pop();
+                const index = entry.getAttribute('data-entry-index');
                 setupEntryValidation(index);
             });
+
             const jumpToIndexInput = document.querySelector('input[name="jump_to_index"]');
+            if (jumpToIndexInput) {
+                jumpToIndexInput.addEventListener('keydown', function (event) {
+                    if (event.key === 'Enter') {
+                        event.preventDefault(); // Prevent form submission
 
-            // Add event listener for Enter key press
-            jumpToIndexInput.addEventListener('keydown', function (event) {
-                if (event.key === 'Enter') {
-                    event.preventDefault(); // Prevent form submission
-
-                    // Trigger the "jump" action
-                    const jumpButton = document.querySelector('button[name="action"][value="jump"]');
-                    jumpButton.click();
-                }
-            });
+                        // Trigger the "jump" action
+                        const jumpButton = document.querySelector('button[name="action"][value="jump"]');
+                        if (jumpButton) jumpButton.click();
+                    }
+                });
+            }
         });
     </script>
 </body>

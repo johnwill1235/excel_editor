@@ -47,6 +47,29 @@
             box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
             border-color: #3b82f6;
         }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0; 
+            left: 0;
+            width: 100vw; 
+            height: 100vh;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+        .hidden {
+            display: none;
+        }
+        .loading-message {
+            background: #fff;
+            padding: 1rem 2rem;
+            border-radius: 0.5rem;
+            text-align: center;
+            box-shadow: 0 0 10px rgba(0,0,0,0.2);
+        }
     </style>
 </head>
 
@@ -211,6 +234,12 @@
                     <p class="text-gray-500 text-xs">請載入 CSV 檔案開始編輯</p>
                 </div>
             {% endif %}
+        </div>
+    </div>
+
+    <div class="loading-overlay hidden">
+        <div class="loading-message">
+            <p>Loading, please wait...</p>
         </div>
     </div>
 
@@ -433,6 +462,15 @@
                     }
                 });
             }
+            const allForms = document.querySelectorAll('form');
+            allForms.forEach(form => {
+                form.addEventListener('submit', function() {
+                    const overlay = document.querySelector('.loading-overlay');
+                    if (overlay) {
+                        overlay.classList.remove('hidden');
+                    }
+                });
+            });
         });
     </script>
 </body>

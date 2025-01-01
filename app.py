@@ -192,7 +192,7 @@ def handle_submit():
         # Save current entries
         for i, entry in enumerate(entries):
             for column in REQUIRED_COLUMNS + OPTIONAL_COLUMNS:
-                if column in ['word', 'number', 'pinyin', 'zhuyin']:
+                if column in ['word', 'number', 'problematic_words']:
                     continue  # Skip read-only fields
 
                 if column in ['collocations', 'example_sentences']:

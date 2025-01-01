@@ -17,7 +17,7 @@ UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'csv'}
 REQUIRED_COLUMNS = ["word", "number", "old_definition", "translation",
                     "definition", "example_sentences", "part_of_speech", "collocations"]
-OPTIONAL_COLUMNS = ["problematic_words"]  # New optional columns
+OPTIONAL_COLUMNS = ["pinyin", "zhuyin", "problematic_words"]  # Moved 'pinyin' and 'zhuyin' to optional
 
 # Create uploads directory if it doesn't exist
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
@@ -32,9 +32,11 @@ def load_dataframe(csv_file_path):
             df = pd.read_csv(csv_file_path)
 
             # Replace NaN with empty strings for specific columns
-            for col in ['collocations', 'example_sentences', 'problematic_words']:
+            for col in REQUIRED_COLUMNS + OPTIONAL_COLUMNS:
                 if col in df.columns:
                     df[col] = df[col].fillna('').astype(str)
+                else:
+                    df[col] = ''  # Add missing optional columns with empty strings
 
             # First sort by number to ensure overall numerical order
             df = df.sort_values(by='number', ascending=True)
@@ -46,7 +48,7 @@ def load_dataframe(csv_file_path):
             # Sort the grouped dictionary by the minimum number in each word group
             sorted_grouped = dict(sorted(
                 grouped.items(),
-                key=lambda item: min(entry['number'] for entry in item[1])
+                key=lambda item: min(int(entry['number']) for entry in item[1] if entry['number'].isdigit())
             ))
 
             return sorted_grouped
@@ -80,8 +82,10 @@ def index():
             current_word = words[current_index]
             entries = grouped_data[current_word]
 
-            # Check if problematic_words column exists in the data
-            has_problematic_words = any('problematic_words' in entry for entry in entries)
+            # Check if optional columns exist in the data
+            has_pinyin = any(entry.get('pinyin') for entry in entries)
+            has_zhuyin = any(entry.get('zhuyin') for entry in entries)
+            has_problematic_words = any(entry.get('problematic_words') for entry in entries)
 
             logger.debug(f"Data for word '{current_word}' loaded. Number of entries: {len(entries)}")
 
@@ -92,6 +96,8 @@ def index():
                 current_word_index=current_index + 1,
                 csv_file_path=csv_file_path,
                 current_index=current_index,
+                has_pinyin=has_pinyin,
+                has_zhuyin=has_zhuyin,
                 has_problematic_words=has_problematic_words
             )
         else:
@@ -131,10 +137,18 @@ def load_csv():
 
                 # Verify CSV columns
                 temp_df = pd.read_csv(filepath)
-                missing_columns = [col for col in REQUIRED_COLUMNS if col not in temp_df.columns]
-                if missing_columns:
+                missing_required = [col for col in REQUIRED_COLUMNS if col not in temp_df.columns]
+                if missing_required:
                     os.remove(filepath)
-                    raise ValueError(f"Missing required columns: {', '.join(missing_columns)}")
+                    raise ValueError(f"Missing required columns: {', '.join(missing_required)}")
+
+                # Ensure optional columns exist, if not, add them with empty strings
+                for col in OPTIONAL_COLUMNS:
+                    if col not in temp_df.columns:
+                        temp_df[col] = ''
+
+                # Save the updated CSV with optional columns
+                temp_df.to_csv(filepath, index=False)
 
                 flash('CSV file loaded successfully!', 'success')
                 logger.debug("CSV processing completed successfully")
@@ -177,8 +191,8 @@ def handle_submit():
 
         # Save current entries
         for i, entry in enumerate(entries):
-            for column in REQUIRED_COLUMNS:
-                if column in ['word', 'number']:
+            for column in REQUIRED_COLUMNS + OPTIONAL_COLUMNS:
+                if column in ['word', 'number', 'pinyin', 'zhuyin']:
                     continue  # Skip read-only fields
 
                 if column in ['collocations', 'example_sentences']:
@@ -193,6 +207,11 @@ def handle_submit():
 
         # Convert the updated grouped data back to a DataFrame
         updated_df = pd.DataFrame([entry for entries in grouped_data.values() for entry in entries])
+
+        # Reorder columns: move optional columns to the end if they exist
+        existing_columns = [col for col in REQUIRED_COLUMNS + OPTIONAL_COLUMNS if col in updated_df.columns]
+        updated_df = updated_df[existing_columns]
+
         updated_df.to_csv(csv_file_path, index=False)
 
         flash('Changes saved successfully!', 'success')
@@ -248,7 +267,7 @@ def download_csv():
             return send_file(
                 temp_file,
                 as_attachment=True,
-                download_name=f"sorted_{os.path.basename(csv_file_path)}"
+                download_name=f"我已做完_{os.path.basename(csv_file_path)}"
             )
         else:
             flash('No CSV file available for download', 'error')

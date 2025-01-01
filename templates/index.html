@@ -90,18 +90,42 @@
                     {% for entry in entries %}
                         {% set i = loop.index0 %}
                         <div class="bg-gray-50 p-2 rounded-lg border border-gray-200 shadow-sm" data-entry-index="{{ i }}">
-                            <!-- Word and Number Fields -->
-                            <div class="grid grid-cols-3 gap-2 mb-2">
+                            <!-- Word, Pinyin, Zhuyin, Number, and Original Definition Fields -->
+                            <div class="grid grid-cols-{{ '5' if has_pinyin and has_zhuyin else '3' }} gap-2 mb-2">
+                                <!-- 詞目 Field -->
                                 <div>
                                     <label class="block text-xs font-medium text-gray-700 mb-1">詞目</label>
                                     <input type="text" name="word_{{ i }}" value="{{ entry['word'] }}"
                                         class="input-readonly w-full p-1 text-sm rounded-md border text-gray-600" readonly>
                                 </div>
+
+                                {% if has_pinyin %}
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-700 mb-1">拼音</label>
+                                        <div class="editable-field input-editable" contenteditable="true"
+                                            data-field-type="pinyin" data-index="{{ i }}">{{ entry['pinyin'] }}</div>
+                                        <input type="hidden" name="pinyin_{{ i }}" value="{{ entry['pinyin'] }}">
+                                    </div>
+                                {% endif %}
+
+                                <!-- 注音 Field (Editable if exists) -->
+                                {% if has_zhuyin %}
+                                    <div>
+                                        <label class="block text-xs font-medium text-gray-700 mb-1">注音</label>
+                                        <div class="editable-field input-editable" contenteditable="true"
+                                            data-field-type="zhuyin" data-index="{{ i }}">{{ entry['zhuyin'] }}</div>
+                                        <input type="hidden" name="zhuyin_{{ i }}" value="{{ entry['zhuyin'] }}">
+                                    </div>
+                                {% endif %}
+
+                                <!-- 序號 Field -->
                                 <div>
                                     <label class="block text-xs font-medium text-gray-700 mb-1">序號</label>
                                     <input type="text" name="number_{{ i }}" value="{{ entry['number'] }}"
                                         class="input-readonly w-full p-1 text-sm rounded-md border text-gray-600" readonly>
                                 </div>
+
+                                <!-- 原始定義 Field -->
                                 <div>
                                     <label class="block text-xs font-medium text-gray-700 mb-1">原始定義</label>
                                     <input type="text" name="old_definition_{{ i }}" value="{{ entry['old_definition'] }}"
@@ -109,21 +133,25 @@
                                 </div>
                             </div>
 
-                            <!-- Editable Fields -->
+                            <!-- Editable Fields: 定義, 英譯, 詞類 -->
                             <div class="grid grid-cols-3 gap-2 mb-2">
+                                <!-- 定義 Field -->
                                 <div>
                                     <label class="block text-xs font-medium text-gray-700 mb-1">定義</label>
-                                    <!-- ADDED: contenteditable div + hidden input -->
                                     <div class="editable-field input-editable" contenteditable="true"
                                         data-field-type="definition" data-index="{{ i }}">{{ entry['definition'] }}</div>
                                     <input type="hidden" name="definition_{{ i }}" value="{{ entry['definition'] }}">
                                 </div>
+
+                                <!-- 英譯 Field -->
                                 <div>
                                     <label class="block text-xs font-medium text-gray-700 mb-1">英譯</label>
                                     <div class="editable-field input-editable" contenteditable="true"
                                         data-field-type="translation" data-index="{{ i }}">{{ entry['translation'] }}</div>
                                     <input type="hidden" name="translation_{{ i }}" value="{{ entry['translation'] }}">
                                 </div>
+
+                                <!-- 詞類 Field -->
                                 <div>
                                     <label class="block text-xs font-medium text-gray-700 mb-1">詞類</label>
                                     <div class="editable-field input-editable" contenteditable="true"
@@ -132,6 +160,7 @@
                                 </div>
                             </div>
 
+                            <!-- 潛在問題詞 Field (Optional) -->
                             {% if has_problematic_words and entry.get('problematic_words') %}
                                 <div class="grid grid-cols-3 gap-2 mb-2">
                                     <div>
@@ -144,7 +173,7 @@
                                 </div>
                             {% endif %}
 
-                            <!-- Collocations Field -->
+                            <!-- 搭配詞 Field -->
                             <div class="mb-2">
                                 <label class="block text-xs font-medium text-gray-700 mb-1">搭配詞</label>
                                 <div id="collocations-container-{{ i }}" class="flex flex-wrap gap-1">
@@ -156,7 +185,7 @@
                                 </div>
                             </div>
 
-                            <!-- Example Sentences Field (changed to contenteditable for highlighting) -->
+                            <!-- 例句 Field -->
                             <div>
                                 <label class="block text-xs font-medium text-gray-700 mb-1">例句（五個，至少一個搭配詞）</label>
                                 <div id="example-sentences-container-{{ i }}" class="grid grid-cols-2 gap-1">
@@ -372,11 +401,6 @@
                 updateExampleSentenceColors();
             }
 
-            // Utility function to escape regex special characters
-            function escapeRegExp(string) {
-                return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-            }
-
             // Function to prepare form data before submission
             function prepareFormBeforeSubmit(e) {
                 const form = e.target;
@@ -389,6 +413,8 @@
                     // Prepare collocations and example sentences
                     let collocations = [];
                     let exampleSentences = [];
+                    let pinyin = '';
+                    let zhuyin = '';
 
                     editableFields.forEach(field => {
                         const type = field.getAttribute('data-field-type');
@@ -408,6 +434,23 @@
 
                         if (type === 'example_sentences') {
                             exampleSentences.push(textContent);
+                        }
+
+                        // Handle pinyin and zhuyin
+                        if (type === 'pinyin') {
+                            pinyin = textContent;
+                            const hiddenInput = entry.querySelector(`input[name="pinyin_${indexAttr}"]`);
+                            if (hiddenInput) {
+                                hiddenInput.value = pinyin;
+                            }
+                        }
+
+                        if (type === 'zhuyin') {
+                            zhuyin = textContent;
+                            const hiddenInput = entry.querySelector(`input[name="zhuyin_${indexAttr}"]`);
+                            if (hiddenInput) {
+                                hiddenInput.value = zhuyin;
+                            }
                         }
                     });
 
@@ -450,6 +493,7 @@
                 setupEntryValidation(index);
             });
 
+            // Handle Enter key for jump_to_index input
             const jumpToIndexInput = document.querySelector('input[name="jump_to_index"]');
             if (jumpToIndexInput) {
                 jumpToIndexInput.addEventListener('keydown', function (event) {
@@ -462,9 +506,11 @@
                     }
                 });
             }
+
+            // Show loading overlay on form submission
             const allForms = document.querySelectorAll('form');
             allForms.forEach(form => {
-                form.addEventListener('submit', function() {
+                form.addEventListener('submit', function () {
                     const overlay = document.querySelector('.loading-overlay');
                     if (overlay) {
                         overlay.classList.remove('hidden');
